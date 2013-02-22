@@ -270,7 +270,8 @@ fi
 #     res_init, res_send, res_querydomain, gethostbyname,
 #     gethostbyaddr, getaddrinfo, getipnodebyname, sendto,
 #     sendmsg, recvmsg, read, write, send, recv, recvfrom,
-#     writev, readv, sendmmsg, recvmmsg, ppoll, pselect, epoll_wait
+#     writev, readv, sendmmsg, recvmmsg, ppoll, pselect, epoll_wait, 
+#     epoll_pwait
 ##############################################################################
 
 dnl Find the correct select prototype on this machine
@@ -705,6 +706,10 @@ linux*)
     AC_DEFINE_UNQUOTED([EPOLL_WAIT_AVAILABLE], [1],[Description])
     AC_DEFINE_UNQUOTED([EPOLL_WAIT_SIGNATURE], [${PROTO}],[Description])
     AC_DEFINE_UNQUOTED([EPOLL_WAIT_ARGNAMES],[${NAMES}],[Argument names])
+    PROTO="${PROTO}, const sigset_t *sigmask"
+    NAMES="${NAMES}, sigmask"
+    AC_DEFINE_UNQUOTED([EPOLL_PWAIT_SIGNATURE], [${PROTO}],[Description])
+    AC_DEFINE_UNQUOTED([EPOLL_PWAIT_ARGNAMES],[${NAMES}],[Argument names])
   fi
 
 
