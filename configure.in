@@ -712,7 +712,7 @@ linux*)
     AC_MSG_RESULT(not found/supported)
   else
     AC_MSG_RESULT([epoll_wait(${PROTO})])
-    AC_DEFINE_UNQUOTED([EPOLL_WAIT_AVAILABLE], [1],[Description])
+    AC_DEFINE_UNQUOTED([EPOLL_AVAILABLE], [1],[Description])
     AC_DEFINE_UNQUOTED([EPOLL_WAIT_SIGNATURE], [${PROTO}],[Description])
     AC_DEFINE_UNQUOTED([EPOLL_WAIT_ARGNAMES],[${NAMES}],[Argument names])
     PROTO="${PROTO}, const sigset_t *sigmask"
