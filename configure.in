@@ -510,7 +510,7 @@ dnl Find the correct write prototype on this machine
 AC_MSG_CHECKING(for correct write prototype)
 PROTO=
 NAMES='fd, buf, count'
-for testproto in 'int fd, __const void *buf, size_t count'
+for testproto in 'int fd, const void *buf, size_t count'
 do
   if test "${PROTO}" = ""; then
     AC_TRY_COMPILE([
@@ -643,7 +643,12 @@ dnl Find the correct pselect prototype on this machine
 AC_MSG_CHECKING(for correct pselect prototype)
 PROTO=
 NAMES='nfds, readfds, writefds, exceptfds, timeout, sigmask'
-for testproto in 'int nfds, fd_set *__restrict readfds, fd_set *__restrict writefds,  fd_set *__restrict exceptfds, const struct timespec *__restrict timeout, const __sigset_t *__restrict sigmask'
+TESTPROTO='int nfds, fd_set * readfds, '
+TESTPROTO="${TESTPROTO}fd_set * writefds, "
+TESTPROTO="${TESTPROTO}fd_set * exceptfds, "
+TESTPROTO="${TESTPROTO}const struct timespec * timeout, "
+TESTPROTO="${TESTPROTO}const sigset_t * sigmask"
+for testproto in "${TESTPROTO}"
 do
   if test "${PROTO}" = ""; then
     AC_TRY_COMPILE([
@@ -668,14 +673,17 @@ linux*)
   AC_MSG_CHECKING(for correct ppoll prototype)
   PROTO=
   NAMES='fds, nfds, timeout, sigmask'
-  for testproto in 'struct pollfd *fds, nfds_t nfds, __const struct timespec *timeout, __const __sigset_t *sigmask'
+  TESTPROTO='struct pollfd *fds, nfds_t nfds, '
+  TESTPROTO="${TESTPROTO}const struct timespec *timeout, "
+  TESTPROTO="${TESTPROTO}const __sigset_t *sigmask"
+  for testproto in "${TESTPROTO}"
   do
     if test "${PROTO}" = ""; then
       AC_TRY_COMPILE([
-	#define _GNU_SOURCE
+        #define _GNU_SOURCE
         #include <sys/poll.h>
-        int ppoll($testproto);
-      ],,[PROTO="$testproto";],)
+        int ppoll(${testproto});
+      ],,[PROTO="${testproto}";],)
     fi
   done
   if test "${PROTO}" = ""; then
@@ -689,8 +697,9 @@ linux*)
   dnl Find the correct epoll_wait prototype on this machine 
   AC_MSG_CHECKING(for correct epoll_wait prototype)
   PROTO=
-  NAMES='epfd, events, maxevents, timout'
-  for testproto in 'int epfd, struct epoll_event *events, int maxevents, int timeout'
+  NAMES='epfd, events, maxevents, timeout'
+  TESTPROTO='int epfd, struct epoll_event *events, int maxevents, int timeout'
+  for testproto in "${TESTPROTO}"
   do
     if test "${PROTO}" = ""; then
       AC_TRY_COMPILE([
@@ -741,7 +750,9 @@ linux*)
   AC_MSG_CHECKING(for correct recvmmsg prototype)
   PROTO=
   NAMES='s, msgvec, vlen, flags, timeout'
-  for testproto in 'int s, struct mmsghdr *msgvec, unsigned int vlen, int flags, __const struct timespec *timeout'
+  TESTPROTO='int s, struct mmsghdr *msgvec, unsigned int vlen, int flags, '
+  TESTPROTO="${TESTPROTO}const struct timespec *timeout"
+  for testproto in "${TESTPROTO}"
   do
     if test "${PROTO}" = ""; then
       AC_TRY_COMPILE([
@@ -789,7 +800,8 @@ AC_DEFINE_UNQUOTED(GETHOSTBYADDR_SIGNATURE, [${PROTO}], [Description])
 AC_DEFINE_UNQUOTED([GETHOSTBYADDR_ARGNAMES],[${NAMES}],[Argument names])
 
 dnl Emit signature for sendto
-PROTO="int s, const void *buf, size_t len, int flags, const struct sockaddr *to, socklen_t tolen"
+PROTO="int s, const void *buf, size_t len, int flags, "
+PROTO="${PROTO}const struct sockaddr *to, socklen_t tolen"
 NAMES='s, buf, len, flags, to, tolen'
 AC_DEFINE_UNQUOTED(SENDTO_SIGNATURE, [${PROTO}], [Description])
 AC_DEFINE_UNQUOTED([SENDTO_ARGNAMES],[${NAMES}],[Argument names])
@@ -801,7 +813,8 @@ AC_DEFINE_UNQUOTED(SENDMSG_SIGNATURE, [${PROTO}], [Description])
 AC_DEFINE_UNQUOTED([SENDMSG_ARGNAMES],[${NAMES}],[Argument names])
 
 dnl Emit signature for recvfrom
-PROTO="int s, void *__restrict buf, size_t len, int flags, __SOCKADDR_ARG addr, socklen_t *__restrict addr_len"
+PROTO="int s, void * buf, size_t len, int flags, __SOCKADDR_ARG addr, "
+PROTO="${PROTO}socklen_t * addr_len"
 NAMES='s, buf, len, flags, addr, addr_len'
 AC_DEFINE_UNQUOTED(RECVFROM_SIGNATURE, [${PROTO}], [Description])
 AC_DEFINE_UNQUOTED([RECVFROM_ARGNAMES],[${NAMES}],[Argument names])
