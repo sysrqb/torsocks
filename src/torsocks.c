@@ -161,6 +161,8 @@ void torsocks_init(void)
     realgetipnodebyname = dlsym(lib, "getipnodebyname");
     realsendto = dlsym(lib, "sendto");
     realsendmsg = dlsym(lib, "sendmsg");
+    realsend = dlsym(lib, "send");
+    realrecv = dlsym(lib, "recv");
     dlclose(lib);
     lib = dlopen(LIBC, RTLD_LAZY);
     realclose = dlsym(lib, "close");
@@ -1153,7 +1155,7 @@ ssize_t torsocks_recvmsg_guts(RECVMSG_SIGNATURE, ssize_t(*original_recvmsg)(RECV
     /* If the real recvmsg doesn't exist, we're stuffed */
     if (original_recvmsg == NULL) {
         show_msg(MSGERR, "Unresolved symbol: recvmsg\n");
-        return(-1);
+        return -1;
     }
 
     return (ssize_t) original_recvmsg(s, msg, flags);
@@ -1164,29 +1166,54 @@ ssize_t torsocks_write_guts(WRITE_SIGNATURE, ssize_t(*original_write)(WRITE_SIGN
     /* If the real write doesn't exist, we're stuffed */
     if (original_write == NULL) {
         show_msg(MSGERR, "Unresolved symbol: write\n");
-        return(-1);
+        return -1;
     }
 
-    return original_write(fd, buf, count);
+    show_msg(MSGTEST, "Got write request\n");
+
+    return send(fd, buf, count, 0);
 }
 
 ssize_t torsocks_read_guts(READ_SIGNATURE, ssize_t(*original_read)(READ_SIGNATURE))
 {
+    struct connreq *conn;
+    
     /* If the real read doesn't exist, we're stuffed */
     if (original_read == NULL) {
         show_msg(MSGERR, "Unresolved symbol: read\n");
         return(-1);
     }
 
+    /* Are we handling this connect? */
+    if ((conn = find_socks_request(fd, 1))) {
+	/* Complete SOCKS handshake if necessary */
+	handle_request(conn);
+
+        if (conn->state != DONE) {
+            errno = ENOTCONN;
+            return(-1);
+        }
+    }
     return original_read(fd, buf, count);
 }
 
 ssize_t torsocks_send_guts(SEND_SIGNATURE, ssize_t(*original_send)(SEND_SIGNATURE))
 {
+    struct connreq *conn;
+    
     /* If the real send doesn't exist, we're stuffed */
     if (original_send == NULL) {
         show_msg(MSGERR, "Unresolved symbol: send\n");
         return(-1);
+    }
+
+    /* Are we handling this connect? */
+    if ((conn = find_socks_request(fd, 1))) {
+        if (conn->state != DONE || (conn->using_optdata &&
+             ((conn->state != SENTV4REQ) || (conn->state != SENTV5CONNECT)))) {
+            errno = ENOTCONN;
+            return(-1);
+        }
     }
 
     return original_send(fd, buf, count, flags);
@@ -1194,10 +1221,23 @@ ssize_t torsocks_send_guts(SEND_SIGNATURE, ssize_t(*original_send)(SEND_SIGNATUR
 
 ssize_t torsocks_recv_guts(RECV_SIGNATURE, ssize_t(*original_recv)(RECV_SIGNATURE))
 {
+    struct connreq *conn;
+    
     /* If the real recv doesn't exist, we're stuffed */
     if (original_recv == NULL) {
         show_msg(MSGERR, "Unresolved symbol: recv\n");
         return(-1);
+    }
+
+    /* Are we handling this connect? */
+    if ((conn = find_socks_request(fd, 1))) {
+	/* Complete SOCKS handshake if necessary */
+	handle_request(conn);
+
+        if (conn->state != DONE) {
+            errno = ENOTCONN;
+            return(-1);
+        }
     }
 
     return original_recv(fd, buf, count, flags);
