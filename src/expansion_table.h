@@ -91,8 +91,6 @@ DNS_FUNC    (ERR,    int,                GETADDRINFO_,       getaddrinfo,       
 /* getipnodebyname is deprecated so do not report an error if it is not available.*/
 DNS_FUNC    (WARN,    struct hostent *,  GETIPNODEBYNAME_,   getipnodebyname,               getipnodebyname,     "getipnodebyname")
 
-DNS_FUNC    (ERR,    ssize_t,            SEND_,              send,                          send,                "send")
-
 DNS_FUNC    (ERR,    ssize_t,            SENDTO_,            sendto,                        sendto,              "sendto")
 DNS_FUNCD32 (ERR,    ssize_t,            SENDTO_,            sendto_unix2003,               sendto,              "sendto$UNIX2003")
 DNS_FUNCD32 (ERR,    ssize_t,            SENDTO_,            sendto_nocancel_unix2003,      sendto,              "sendto$NOCANCEL$UNIX2003")
@@ -110,6 +108,10 @@ DNS_FUNCDL  (ERR,    int,                RECVMMSG_,          recvmmsg,          
 DNS_FUNC    (ERR,    ssize_t,            RECVFROM_,          recvfrom,                      recvfrom,            "recvfrom")
 
 DNS_FUNC    (ERR,    ssize_t,            RECVMSG_,           recvmsg,                       recvmsg,             "recvmsg")
+
+FUNC        (ERR,    ssize_t,            SEND_,              send,                          send,                "send")
+
+FUNC        (ERR,    ssize_t,            RECV_,              recv,                          recv,                "recv")
 
 FUNC        (ERR,    int,                CONNECT_,           connect,                       connect,             "connect")
 FUNCD32     (ERR,    int,                CONNECT_,           connect_unix2003,              connect,             "connect$UNIX2003")
