@@ -1122,6 +1122,8 @@ int torsocks_sendmmsg_guts(SENDMMSG_SIGNATURE, int (*original_sendmmsg)(SENDMMSG
         return(-1);
     }
 
+    show_msg(MSGTEST, "Got sendmmsg request\n");
+
     return original_sendmmsg(s, msgvec, vlen, flags);
 }
 #endif /* SENDMMSG_AVAILABLE */
@@ -1135,6 +1137,8 @@ int torsocks_recvmmsg_guts(RECVMMSG_SIGNATURE, int (*original_recvmmsg)(RECVMMSG
         return(-1);
     }
 
+    show_msg(MSGTEST, "Got recvmmsg request\n");
+
     return original_recvmmsg(s, msgvec, vlen, flags, timeout);
 }
 #endif /* RECVMMSG_AVAILABLE */
@@ -1146,6 +1150,8 @@ ssize_t torsocks_recvfrom_guts(RECVFROM_SIGNATURE, ssize_t(*original_recvfrom)(R
         show_msg(MSGERR, "Unresolved symbol: recvfrom\n");
         return(-1);
     }
+
+    show_msg(MSGTEST, "Got recvfrom request\n");
 
     return (ssize_t) original_recvfrom(s, buf, len, flags, addr, addr_len);
 }
@@ -1184,6 +1190,8 @@ ssize_t torsocks_read_guts(READ_SIGNATURE, ssize_t(*original_read)(READ_SIGNATUR
         return(-1);
     }
 
+    show_msg(MSGTEST, "Got write request\n");
+
     /* Are we handling this connect? */
     if ((conn = find_socks_request(fd, 1))) {
 	/* Complete SOCKS handshake if necessary */
@@ -1207,6 +1215,8 @@ ssize_t torsocks_send_guts(SEND_SIGNATURE, ssize_t(*original_send)(SEND_SIGNATUR
         return(-1);
     }
 
+    show_msg(MSGTEST, "Got send request\n");
+
     /* Are we handling this connect? */
     if ((conn = find_socks_request(fd, 1))) {
         if (conn->state != DONE || (conn->using_optdata &&
@@ -1228,6 +1238,8 @@ ssize_t torsocks_recv_guts(RECV_SIGNATURE, ssize_t(*original_recv)(RECV_SIGNATUR
         show_msg(MSGERR, "Unresolved symbol: recv\n");
         return(-1);
     }
+
+    show_msg(MSGTEST, "Got recv request\n");
 
     /* Are we handling this connect? */
     if ((conn = find_socks_request(fd, 1))) {
@@ -1251,6 +1263,8 @@ ssize_t torsocks_readv_guts(READV_SIGNATURE, ssize_t(*original_readv)(READV_SIGN
         return(-1);
     }
 
+    show_msg(MSGTEST, "Got readv request\n");
+
     return original_readv(fd, iov, iovcnt);
 }
 
@@ -1261,6 +1275,8 @@ ssize_t torsocks_writev_guts(WRITEV_SIGNATURE, ssize_t(*original_writev)(WRITEV_
         show_msg(MSGERR, "Unresolved symbol: writev\n");
         return(-1);
     }
+
+    show_msg(MSGTEST, "Got writev request\n");
 
     return original_writev(fd, iov, iovcnt);
 }
@@ -1273,6 +1289,8 @@ int torsocks_ppoll_guts(PPOLL_SIGNATURE, int(*original_ppoll)(PPOLL_SIGNATURE))
         return(-1);
     }
 
+    show_msg(MSGTEST, "Got ppoll request\n");
+
     return original_ppoll(fds, nfds, timeout, sigmask);
 }
 
@@ -1283,6 +1301,8 @@ int torsocks_pselect_guts(PSELECT_SIGNATURE, int(*original_pselect)(PSELECT_SIGN
         show_msg(MSGERR, "Unresolved symbol: pselect\n");
         return(-1);
     }
+
+    show_msg(MSGTEST, "Got pselect request\n");
 
     return original_pselect(nfds, readfds, writefds, exceptfds, timeout, sigmask);
 }
@@ -1296,6 +1316,8 @@ int torsocks_epoll_wait_guts(EPOLL_WAIT_SIGNATURE, int(*original_epoll_wait)(EPO
         return(-1);
     }
 
+    show_msg(MSGTEST, "Got epoll_wait request\n");
+
     return original_epoll_wait(epfd, events, maxevents, timeout);
 }
 
@@ -1306,6 +1328,8 @@ int torsocks_epoll_pwait_guts(EPOLL_PWAIT_SIGNATURE, int(*original_epoll_pwait)(
         show_msg(MSGERR, "Unresolved symbol: epoll_pwait\n");
         return(-1);
     }
+
+    show_msg(MSGTEST, "Got epoll_pwait request\n");
 
     return original_epoll_pwait(epfd, events, maxevents, timeout, sigmask);
 }
