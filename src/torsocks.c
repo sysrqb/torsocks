@@ -498,7 +498,7 @@ inline int torsocks_select_common(int nfds, fd_set * writefds, fd_set * readfds,
                 FD_CLR(conn->sockid,&mywritefds);
             /* If we're waiting to receive data we want to get
               * read events */
-            if (conn->state == RECEIVING)
+            if (conn->state == RECEIVING || conn->state == SENTV4REQ || conn->state == SENTV5CONNECT)
                 FD_SET(conn->sockid,&myreadfds);
             else
                 FD_CLR(conn->sockid,&myreadfds);
