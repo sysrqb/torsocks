@@ -672,6 +672,8 @@ inline int torsocks_poll_common(struct pollfd * ufds, nfds_t nfds,
         for (i = 0; i < nfds; i++) {
             if (!(conn = find_socks_request(ufds[i].fd, 0)))
                 continue;
+            
+	    show_msg(MSGDEBUG, "Found our request, %x\n", conn);
 
             /* We always want to know about socket exceptions but they're
               * always returned (i.e they don't need to be in the list of
@@ -684,14 +686,19 @@ inline int torsocks_poll_common(struct pollfd * ufds, nfds_t nfds,
                 ufds[i].events |= POLLOUT;
             /* If we're waiting to receive data we want to get
               * read events */
-            if (conn->state == RECEIVING)
+            if (conn->state == RECEIVING || conn->state == SENTV4REQ || conn->state == SENTV5CONNECT)
                 ufds[i].events |= POLLIN;
+
+            show_msg(MSGDEBUG, "Events on socket are %d\n", ufds[i].events);
         }
 
 	if (opts.is_poll)
             nevents = original_poll(ufds, nfds, opts.poll_timeout);
         else
             nevents = original_ppoll(ufds, nfds, opts.ppoll_timeout_ts, opts.sigmask);
+        
+	show_msg(MSGDEBUG, "%s returned with %d\n", (opts.is_poll ? "poll" : "ppoll"), nevents);
+
         /* If there were no events we must have timed out or had an error */
         if (nevents <= 0)
             break;
