@@ -770,7 +770,7 @@ inline int torsocks_poll_common(struct pollfd * ufds, nfds_t nfds,
             } else {
                 /* The connection is done,  if the client polled for
                  * writing we can go ahead and signal that now (since the socket must
-                 * be ready for writing), otherwise we'll just let the select loop
+                 * be ready for writing), otherwise we'll just let the poll loop
                  * come around again (since we can't flag it for read, we don't know
                  * if there is any data to be read and can't be bothered checking) */
                 if (conn->selectevents & POLLOUT) {
