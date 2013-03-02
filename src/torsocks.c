@@ -105,6 +105,16 @@ struct selectopts {
   const sigset_t * sigmask;
 };
 
+struct pollopts {
+  int is_poll;
+  union {
+    int poll_timeout;
+    const struct timespec * ppoll_timeout_ts;
+  };
+  const sigset_t * sigmask;
+};
+
+
 /* Exported Function Prototypes */
 void __attribute__ ((constructor)) torsocks_init(void);
 
@@ -640,40 +650,14 @@ int torsocks_select_guts(SELECT_SIGNATURE, int (*original_select)(SELECT_SIGNATU
     return(nevents);
 }
 
-int torsocks_poll_guts(POLL_SIGNATURE, int (*original_poll)(POLL_SIGNATURE))
-{
+/* Common functionality of poll and ppoll */
+inline int torsocks_poll_common(struct pollfd * ufds, nfds_t nfds, 
+                 int (*original_poll)(POLL_SIGNATURE),
+                 int (*original_ppoll)(PPOLL_SIGNATURE), struct pollopts opts) {
     int nevents = 0;
-    int rc = 0;
     unsigned int i;
     int setevents = 0;
-    int monitoring = 0;
     struct connreq *conn, *nextconn;
-
-    /* If we're not currently managing any requests we can just
-      * leave here */
-    if (!requests)
-        return(original_poll(ufds, nfds, timeout));
-
-    show_msg(MSGTEST, "Intercepted call to poll\n");
-    show_msg(MSGDEBUG, "Intercepted call to poll with %d fds, "
-              "0x%08x timeout %d\n", nfds, ufds, timeout);
-
-    for (conn = requests; conn != NULL; conn = conn->next)
-        conn->selectevents = 0;
-
-    /* Record what events on our sockets the caller was interested
-      * in */
-    for (i = 0; i < nfds; i++) {
-        if (!(conn = find_socks_request(ufds[i].fd, 0)))
-            continue;
-        show_msg(MSGDEBUG, "Have event checks for socks enabled socket %d\n",
-                conn->sockid);
-        conn->selectevents = ufds[i].events;
-        monitoring = 1;
-    }
-
-    if (!monitoring)
-        return(original_poll(ufds, nfds, timeout));
 
     /* This is our poll loop. In it we repeatedly call poll(). We
       * pass select the same event list as provided by the caller except we
@@ -704,7 +688,10 @@ int torsocks_poll_guts(POLL_SIGNATURE, int (*original_poll)(POLL_SIGNATURE))
                 ufds[i].events |= POLLIN;
         }
 
-        nevents = original_poll(ufds, nfds, timeout);
+	if (opts.is_poll)
+            nevents = original_poll(ufds, nfds, opts.poll_timeout);
+        else
+            nevents = original_ppoll(ufds, nfds, opts.ppoll_timeout_ts, opts.sigmask);
         /* If there were no events we must have timed out or had an error */
         if (nevents <= 0)
             break;
@@ -749,7 +736,7 @@ int torsocks_poll_guts(POLL_SIGNATURE, int (*original_poll)(POLL_SIGNATURE))
             if (setevents & (POLLERR | POLLNVAL | POLLHUP)) {
                 conn->state = FAILED;
             } else {
-                rc = handle_request(conn);
+                handle_request(conn);
             }
             /* If the connection hasn't failed or completed there is nothing
               * to report to the client */
@@ -794,7 +781,45 @@ int torsocks_poll_guts(POLL_SIGNATURE, int (*original_poll)(POLL_SIGNATURE))
         ufds[i].events = conn->selectevents;
     }
 
-    return(nevents);
+    return nevents;
+}
+
+int torsocks_poll_guts(POLL_SIGNATURE, int (*original_poll)(POLL_SIGNATURE))
+{
+    unsigned int i;
+    int monitoring = 0;
+    struct connreq *conn;
+    struct pollopts opts;
+
+    /* If we're not currently managing any requests we can just
+      * leave here */
+    if (!requests)
+        return(original_poll(ufds, nfds, timeout));
+
+    show_msg(MSGTEST, "Intercepted call to poll\n");
+    show_msg(MSGDEBUG, "Intercepted call to poll with %d fds, "
+              "0x%08x timeout %d\n", nfds, ufds, timeout);
+
+    for (conn = requests; conn != NULL; conn = conn->next)
+        conn->selectevents = 0;
+
+    /* Record what events on our sockets the caller was interested
+      * in */
+    for (i = 0; i < nfds; i++) {
+        if (!(conn = find_socks_request(ufds[i].fd, 0)))
+            continue;
+        show_msg(MSGDEBUG, "Have event checks for socks enabled socket %d\n",
+                conn->sockid);
+        conn->selectevents = ufds[i].events;
+        monitoring = 1;
+    }
+
+    if (!monitoring)
+        return(original_poll(ufds, nfds, timeout));
+
+    opts.is_poll = 1;
+    opts.poll_timeout = timeout;
+    return torsocks_poll_common(ufds, nfds, original_poll, NULL, opts);
 }
 
 int torsocks_close_guts(CLOSE_SIGNATURE, int (*original_close)(CLOSE_SIGNATURE))
