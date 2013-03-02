@@ -1284,7 +1284,7 @@ ssize_t torsocks_read_guts(READ_SIGNATURE, ssize_t(*original_read)(READ_SIGNATUR
 	handle_request(conn);
 
         if (conn->state != DONE) {
-            errno = ENOTCONN;
+            errno = EBADF;
             return(-1);
         }
     }
@@ -1359,7 +1359,7 @@ ssize_t torsocks_readv_guts(READV_SIGNATURE, ssize_t(*original_readv)(READV_SIGN
 	handle_request(conn);
 
         if (conn->state != DONE) {
-            errno = ENOTCONN;
+            errno = EBADF;
             return(-1);
         }
     }
