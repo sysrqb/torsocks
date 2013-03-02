@@ -152,7 +152,9 @@ FUNC        (ERR,    ssize_t,            WRITEV_,            writev,            
 
 FUNC        (ERR,    int,                PSELECT_,           pselect,                       pselect,              "pselect")
 
+#if PPOLL_AVAILABLE
 FUNC        (ERR,    int,                PPOLL_,             ppoll,                         ppoll,                "ppoll")
+#endif /* PPOLL_AVAILABLE */
 
 #if EPOLL_AVAILABLE
 FUNC        (ERR,    int,                EPOLL_WAIT_,        epoll_wait,                    epoll_wait,           "epoll_wait")

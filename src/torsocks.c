@@ -1357,6 +1357,7 @@ ssize_t torsocks_writev_guts(WRITEV_SIGNATURE, ssize_t(*original_writev)(WRITEV_
     return original_writev(fd, iov, iovcnt);
 }
 
+#if PPOLL_AVAILABLE
 int torsocks_ppoll_guts(PPOLL_SIGNATURE, int(*original_ppoll)(PPOLL_SIGNATURE))
 {
     unsigned int i;
@@ -1402,6 +1403,7 @@ int torsocks_ppoll_guts(PPOLL_SIGNATURE, int(*original_ppoll)(PPOLL_SIGNATURE))
     opts.sigmask = sigmask;
     return torsocks_poll_common(fds, nfds, NULL, original_ppoll, opts);
 }
+#endif /* PPOLL_AVAILABLE */
 
 int torsocks_pselect_guts(PSELECT_SIGNATURE, int(*original_pselect)(PSELECT_SIGNATURE))
 {
