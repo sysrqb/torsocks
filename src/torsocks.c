@@ -511,9 +511,9 @@ inline int torsocks_select_common(int nfds, fd_set * writefds, fd_set * readfds,
         }
 
         if (opts.is_select)
-          nevents = original_select(nfds, readfds, writefds, exceptfds, opts.select_timeout);
+          nevents = original_select(nfds, &myreadfds, &mywritefds, &myexceptfds, opts.select_timeout);
         else
-          nevents = original_pselect(nfds, readfds, writefds, exceptfds, opts.pselect_timeout, opts.sigmask);
+          nevents = original_pselect(nfds, &myreadfds, &mywritefds, &myexceptfds, opts.pselect_timeout, opts.sigmask);
         
 	show_msg(MSGDEBUG, "%s returned with %d\n", (opts.is_select ? "select" : "pselect"), nevents);
 
