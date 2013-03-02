@@ -450,7 +450,8 @@ int torsocks_connect_guts(CONNECT_SIGNATURE, int (*original_connect)(CONNECT_SIG
 /* Common functionality of select and pselect */
 inline int torsocks_select_common(int nfds, fd_set * writefds, fd_set * readfds, 
                  fd_set * exceptfds, int (*original_select)(SELECT_SIGNATURE),
-                 int (*original_pselect)(PSELECT_SIGNATURE), struct selectopts opts) {
+                 int (*original_pselect)(PSELECT_SIGNATURE), struct selectopts opts)
+{
     int nevents = 0;
     int setevents = 0;
     struct connreq *conn, *nextconn;
@@ -653,7 +654,8 @@ int torsocks_select_guts(SELECT_SIGNATURE, int (*original_select)(SELECT_SIGNATU
 /* Common functionality of poll and ppoll */
 inline int torsocks_poll_common(struct pollfd * ufds, nfds_t nfds, 
                  int (*original_poll)(POLL_SIGNATURE),
-                 int (*original_ppoll)(PPOLL_SIGNATURE), struct pollopts opts) {
+                 int (*original_ppoll)(PPOLL_SIGNATURE), struct pollopts opts)
+{
     int nevents = 0;
     unsigned int i;
     int setevents = 0;
