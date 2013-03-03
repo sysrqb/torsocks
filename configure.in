@@ -716,6 +716,8 @@ linux*)
   done
   if test "${PROTO}" = ""; then
     AC_MSG_RESULT(not found/supported)
+    AC_DEFINE_UNQUOTED([PPOLL_SIGNATURE], [void],[Description])
+    AC_DEFINE_UNQUOTED([PPOLL_ARGNAMES],[],[Argument names])
   else
     AC_MSG_RESULT([ppoll(${PROTO})])
     AC_DEFINE_UNQUOTED([PPOLL_AVAILABLE], [1],[Description])
@@ -804,6 +806,8 @@ linux*)
   fi
   ;;
 *)
+    AC_DEFINE_UNQUOTED([PPOLL_SIGNATURE], [void],[Description])
+    AC_DEFINE_UNQUOTED([PPOLL_ARGNAMES],[],[Argument names])
   ;;
 esac
 
