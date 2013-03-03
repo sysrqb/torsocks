@@ -1246,6 +1246,8 @@ ssize_t torsocks_recvmsg_guts(RECVMSG_SIGNATURE, ssize_t(*original_recvmsg)(RECV
 
 ssize_t torsocks_write_guts(WRITE_SIGNATURE, ssize_t(*original_write)(WRITE_SIGNATURE))
 {
+    struct connreq *conn;
+    
     /* If the real write doesn't exist, we're stuffed */
     if (original_write == NULL) {
         show_msg(MSGERR, "Unresolved symbol: write\n");
@@ -1254,7 +1256,16 @@ ssize_t torsocks_write_guts(WRITE_SIGNATURE, ssize_t(*original_write)(WRITE_SIGN
 
     show_msg(MSGTEST, "Got write request\n");
 
-    return send(fd, buf, count, 0);
+    /* Are we handling this connect? */
+    if ((conn = find_socks_request(fd, 1))) {
+        if (conn->state != DONE || (conn->using_optdata &&
+             ((conn->state != SENTV4REQ) || (conn->state != SENTV5CONNECT)))) {
+            errno = ENOTCONN;
+            return(-1);
+        }
+    }
+
+    return original_write(fd, buf, count);
 }
 
 ssize_t torsocks_read_guts(READ_SIGNATURE, ssize_t(*original_read)(READ_SIGNATURE))
