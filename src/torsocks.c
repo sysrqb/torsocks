@@ -189,6 +189,9 @@ static int get_environment()
     int loglevel = MSGERR;
     char *logfile = NULL;
     char *env;
+    extern char * torsocks_user;
+    extern char * torsocks_pass;
+
 
     if (done)
         return(0);
@@ -199,6 +202,14 @@ static int get_environment()
     if (((env = getenv("TORSOCKS_DEBUG_FILE"))) && !suid)
         logfile = env;
     set_log_options(loglevel, logfile, (loglevel == MSGTEST) ? 0 : 1);
+    if ((env = getenv("TORSOCKS_USERNAME"))) {
+        torsocks_user = env;
+	show_msg(MSGDEBUG, "Given SOCKS username: %s\n", env);
+    }
+    if ((env = getenv("TORSOCKS_PASSWORD"))) {
+        torsocks_pass = env;
+	show_msg(MSGDEBUG, "Given SOCKS password: %s\n", env);
+    }
 
     done = 1;
 
