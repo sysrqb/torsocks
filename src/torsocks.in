@@ -125,9 +125,6 @@ case "$1" in
   show|sh)
     echo "@LDPRELOAD@=\"$@LDPRELOAD@\""
   ;;
-  -h|-?)
-      echo "$0: Please see torsocks(1) or read comment at top of $0"
-   ;;
   --shell)
     if [ -z "$@LDPRELOAD@" ]
     then
@@ -141,6 +138,57 @@ case "$1" in
     ${SHELL:-/bin/sh}
   ;;
   *)
+    while getopts hv:u:p:f:d: opt 
+    do
+      case "${opt}" in
+        v)
+            if [ "${OPTARG}" -gt "-2" ]
+            then
+                echo "Setting to verbosity level ${OPTARG}"
+                export TORSOCKS_DEBUG="${OPTARG}"
+            else
+                echo "Please provide how verbose you want the output: " \
+		     "between -1 and 3"
+                exit
+            fi
+        ;;
+        f)
+            export TORSOCKS_CONF_FILE="${OPTARG}" 
+        ;;
+        d)
+            export TORSOCKS_DEBUG_FILE="${OPTARG}"
+        ;;
+        u)
+            export TORSOCKS_USERNAME="${OPTARG}"
+        ;;
+        p)
+            export TORSOCKS_PASSWORD="${OPTARG}"
+        ;;
+        *)
+            echo "$0: Please see torsocks(1) or read comment at top of $0."
+            exit
+        ;;
+      esac
+    done
+
+    # Ok, we're done with the options, now let's dump each one
+    # until we reach the part we actually want to exec
+    while [ ${OPTIND} -gt "1" ]
+    do
+        shift
+        (( OPTIND -= 1 ))
+    done
+
+    # We want to isolate each stream unless told to do otherwise
+    if [ -z ${TORSOCKS_USERNAME} -a -z ${TORSOCKS_PASSWORD} ]
+    then
+        if [ -e "/proc/sys/kernel/random/uuid" ]
+        then
+            export TORSOCKS_USERNAME=$(cat /proc/sys/kernel/random/uuid)
+            export TORSOCKS_PASSWORD=$(cat /proc/sys/kernel/random/uuid)
+        fi
+    fi
+ 
     if [ -z "$@LDPRELOAD@" ]
     then
       export @LDPRELOAD@="${SHLIB}"
