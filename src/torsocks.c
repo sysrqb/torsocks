@@ -193,6 +193,7 @@ static int get_environment()
     extern char * torsocks_pass;
 
 
+
     if (done)
         return(0);
 
@@ -208,7 +209,59 @@ static int get_environment()
     }
     if ((env = getenv("TORSOCKS_PASSWORD"))) {
         torsocks_pass = env;
-	show_msg(MSGDEBUG, "Given SOCKS password: %s\n", env);
+        show_msg(MSGDEBUG, "Given SOCKS password: %s\n", env);
+    }
+    if ((env = getenv("TORSOCKS_SOCKSTYPE"))) {
+        show_msg(MSGDEBUG, "Given SOCKS type: %s\n", env);
+        if (strncmp(env, "4", 2) && strncmp(env, "4a", 2) &&
+            strncmp(env, "4A", 2) && strncmp(env, "5", 2)) {
+            show_msg(MSGERR, "The SOCKS type you provided was not 4, "
+                             "4a or 5: %s. Aborting.\n", env);
+            exit(-1);
+        } else {
+            torsocks_sockstype = strndup(env, 2);
+            show_msg(MSGDEBUG, "We will use SOCKS%s for all connections\n",
+                               torsocks_sockstype);
+        }
+    }
+    if ((env = getenv("TORSOCKS_SERVER"))) {
+	/* We'll valid this address on first use, for now. */
+        torsocks_server = env;
+        show_msg(MSGDEBUG, "Given SOCKS server: %s\n", env);
+    }
+    if ((env = getenv("TORSOCKS_PORT"))) {
+        long tmp;
+        show_msg(MSGDEBUG, "Given SOCKS port: %s\n", env);
+        errno = 0;
+        tmp = strtol(env, NULL, 0);
+        if (errno) {
+            show_msg(MSGERR, "The SOCKS port you provided is invalid: %s\n",
+                             strerror(errno));
+            exit(-1);
+        } else if (tmp < 1 || tmp > 65535) {
+            show_msg(MSGERR, "The SOCKS port you provided was not within "
+                             "the range of valid ports: %ld. Aborting.\n",
+                             tmp);
+            exit(-1);
+        } else {
+            torsocks_port = (int) tmp;
+            show_msg(MSGDEBUG, "We will use SOCKS port %d for all connections\n",
+                               torsocks_port);
+        }
+    }
+    if ((env = getenv("TORSOCKS_NOCONF"))) {
+	if (!strncmp(env, "1", 1)) {
+	    if (!torsocks_server || !torsocks_port || !torsocks_sockstype) {
+	        show_msg("MSGERR", "We were told to only use the command line "
+                         "options but we're missing some server information. "
+                         "Please provide the server IP address, SOCKS port, "
+                         "and SOCKS type. Aborting.\n");
+		exit(-1);
+	    } 
+	    torsocks_noconf = 1;
+            show_msg(MSGDEBUG, "Only using the provided values on the "
+                               "command line\n");
+        }
     }
 
     done = 1;
@@ -225,7 +278,7 @@ static int get_config ()
 
     /* Determine the location of the config file */
 #ifdef ALLOW_ENV_CONFIG
-    if (!suid)
+    if (!suid && !torsocks_noconf)
         conffile = getenv("TORSOCKS_CONF_FILE");
 #endif
 

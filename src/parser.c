@@ -41,6 +41,8 @@
 #define MAXLINE         BUFSIZ             /* Max length of conf line  */
 static struct serverent *currentcontext = NULL;
 
+int torsocks_noconf;
+
 static int handle_line(struct parsedfile *, char *, int);
 static int check_server(struct serverent *);
 static int tokenize(char *, int, char *[]);

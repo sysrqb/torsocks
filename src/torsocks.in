@@ -164,6 +164,18 @@ case "$1" in
         p)
             export TORSOCKS_PASSWORD="${OPTARG}"
         ;;
+        t)
+            export TORSOCKS_SOCKSTYPE="${OPTARG}"
+        ;;
+        i)
+            export TORSOCKS_SERVER="${OPTARG}"
+        ;;
+        P)
+            export TORSOCKS_PORT="${OPTARG}"
+        ;;
+	N)
+            export TORSOCKS_NOCONF="1"
+        ;;
         *)
             echo "$0: Please see torsocks(1) or read comment at top of $0."
             exit
@@ -187,6 +199,19 @@ case "$1" in
             export TORSOCKS_USERNAME=$(cat /proc/sys/kernel/random/uuid)
             export TORSOCKS_PASSWORD=$(cat /proc/sys/kernel/random/uuid)
         fi
+    fi
+
+    # We can't use information we're not given
+    if [[ -n ${TORSOCKS_NOCONF} && \
+          -z ${TORSOCKS_SOCKSTYPE} || \
+          -z ${TORSOCKS_SERVER} || \
+	  -z ${TORSOCKS_PORT} ]]
+    then
+        echo "ERROR: When you specify -N please provide the following" \
+	     "three values:"
+	echo "    SOCKS server IP address (-i), SOCKS port (-P)" \
+	     "and SOCKS type (-t)"
+	exit
     fi
  
     if [ -z "$@LDPRELOAD@" ]
