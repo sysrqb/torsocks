@@ -36,6 +36,7 @@
 
 #include "common.h"
 #include "parser.h"
+#include "socks.h"
 
 /* Global configuration variables */
 #define MAXLINE         BUFSIZ             /* Max length of conf line  */
@@ -79,7 +80,7 @@ int read_config (char *filename, struct parsedfile *config) {
 
 
     /* If a filename wasn't provided, use the default */
-    if (filename == NULL) {
+    if ((filename == NULL) && (!torsocks_noconf)) {
         strncpy(line, CONF_FILE, sizeof(line) - 1);
         /* Insure null termination */
         line[sizeof(line) - 1] = (char) 0;
@@ -88,11 +89,30 @@ int read_config (char *filename, struct parsedfile *config) {
                 "environment variable, attempting to use defaults in %s.\n", filename);
     }
 
-    /* If there is no configuration file use reasonable defaults for Tor */
-    if ((conf = fopen(filename, "r")) == NULL) {
-        show_msg(MSGERR, "Could not open socks configuration file "
-                "(%s) errno (%d), assuming sensible defaults for Tor.\n", filename, errno);
+    /* If torsocks_noconf is set, only use the values given to us. Otherwise
+     * if there is no configuration file use reasonable defaults for Tor 
+     * unless we were given some options on the command line, then use those
+     * and fill in any remaining details with the values in the config file.
+     */
+    if (torsocks_noconf) {
         memset(&(config->defaultserver), 0x0, sizeof(config->defaultserver));
+
+        show_msg(MSGWARN, "We were told not to use the config file. "
+                          "Following orders.\n");
+        config->defaultserver.address = strndup(torsocks_server, 15);
+        config->defaultserver.port = torsocks_port;
+        config->defaultserver.type = (int) strtol(torsocks_servertype, NULL, 10);
+        handle_local(config, 0, "127.0.0.0/255.0.0.0");
+        handle_local(config, 0, "10.0.0.0/255.0.0.0");
+        handle_local(config, 0, "192.168.0.0/255.255.0.0");
+        handle_local(config, 0, "172.16.0.0/255.240.0.0");
+        handle_local(config, 0, "169.254.0.0/255.255.0.0");
+    } else if ((conf = fopen(filename, "r")) == NULL) {
+        memset(&(config->defaultserver), 0x0, sizeof(config->defaultserver));
+
+        show_msg(MSGERR, "Could not open socks configuration file "
+            "(%s) errno (%d), assuming sensible defaults for Tor.\n",
+             filename, errno);
         check_server(&(config->defaultserver));
         handle_local(config, 0, "127.0.0.0/255.0.0.0");
         handle_local(config, 0, "10.0.0.0/255.0.0.0");
@@ -102,6 +122,14 @@ int read_config (char *filename, struct parsedfile *config) {
         rc = 1; /* Severe errors reading configuration */
     } else {
         memset(&(config->defaultserver), 0x0, sizeof(config->defaultserver));
+
+        if (torsocks_server) {
+            config->defaultserver.address = strndup(torsocks_server, 15);
+        } else if (torsocks_port) {
+            config->defaultserver.port = torsocks_port;
+        } else if (torsocks_servertype) {
+            config->defaultserver.type = (int) strtol(torsocks_servertype, NULL, 10);
+        }
 
         while (NULL != fgets(line, MAXLINE, conf)) {
             /* This line _SHOULD_ end in \n so we  */
