@@ -71,7 +71,7 @@ From 'man compat' in OSX:
 
 char * torsocks_user = NULL;
 char * torsocks_pass = NULL;
-char * torsocks_sockstype = NULL;
+char * torsocks_servertype = NULL;
 char * torsocks_server = NULL;
 int torsocks_port;
 

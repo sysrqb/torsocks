@@ -165,7 +165,7 @@ case "$1" in
             export TORSOCKS_PASSWORD="${OPTARG}"
         ;;
         t)
-            export TORSOCKS_SOCKSTYPE="${OPTARG}"
+            export TORSOCKS_SERVERTYPE="${OPTARG}"
         ;;
         i)
             export TORSOCKS_SERVER="${OPTARG}"
@@ -203,14 +203,14 @@ case "$1" in
 
     # We can't use information we're not given
     if [[ -n ${TORSOCKS_NOCONF} && \
-          -z ${TORSOCKS_SOCKSTYPE} || \
+          -z ${TORSOCKS_SERVERTYPE} || \
           -z ${TORSOCKS_SERVER} || \
 	  -z ${TORSOCKS_PORT} ]]
     then
         echo "ERROR: When you specify -N please provide the following" \
 	     "three values:"
 	echo "    SOCKS server IP address (-i), SOCKS port (-P)" \
-	     "and SOCKS type (-t)"
+	     "and SOCKS server type (-t)"
 	exit
     fi
  

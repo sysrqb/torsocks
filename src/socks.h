@@ -46,7 +46,7 @@ struct sockrep {
 
 extern char * torsocks_user;
 extern char * torsocks_pass;
-extern char * torsocks_sockstype;
+extern char * torsocks_servertype;
 extern char * torsocks_server;
 extern int torsocks_port;
 

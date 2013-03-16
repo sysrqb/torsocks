@@ -211,17 +211,17 @@ static int get_environment()
         torsocks_pass = env;
         show_msg(MSGDEBUG, "Given SOCKS password: %s\n", env);
     }
-    if ((env = getenv("TORSOCKS_SOCKSTYPE"))) {
-        show_msg(MSGDEBUG, "Given SOCKS type: %s\n", env);
+    if ((env = getenv("TORSOCKS_SERVERTYPE"))) {
+        show_msg(MSGDEBUG, "Given SOCKS server type: %s\n", env);
         if (strncmp(env, "4", 2) && strncmp(env, "4a", 2) &&
             strncmp(env, "4A", 2) && strncmp(env, "5", 2)) {
-            show_msg(MSGERR, "The SOCKS type you provided was not 4, "
+            show_msg(MSGERR, "The SOCKS server type you provided was not 4, "
                              "4a or 5: %s. Aborting.\n", env);
             exit(-1);
         } else {
-            torsocks_sockstype = strndup(env, 2);
+            torsocks_servertype = strndup(env, 2);
             show_msg(MSGDEBUG, "We will use SOCKS%s for all connections\n",
-                               torsocks_sockstype);
+                               torsocks_servertype);
         }
     }
     if ((env = getenv("TORSOCKS_SERVER"))) {
@@ -251,11 +251,11 @@ static int get_environment()
     }
     if ((env = getenv("TORSOCKS_NOCONF"))) {
 	if (!strncmp(env, "1", 1)) {
-	    if (!torsocks_server || !torsocks_port || !torsocks_sockstype) {
-	        show_msg("MSGERR", "We were told to only use the command line "
+	    if (!torsocks_server || !torsocks_port || !torsocks_servertype) {
+	        show_msg(MSGERR, "We were told to only use the command line "
                          "options but we're missing some server information. "
                          "Please provide the server IP address, SOCKS port, "
-                         "and SOCKS type. Aborting.\n");
+                         "and SOCKS server type. Aborting.\n");
 		exit(-1);
 	    } 
 	    torsocks_noconf = 1;
