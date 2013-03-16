@@ -213,8 +213,8 @@ static int get_environment()
     }
     if ((env = getenv("TORSOCKS_SERVERTYPE"))) {
         show_msg(MSGDEBUG, "Given SOCKS server type: %s\n", env);
-        if (strncmp(env, "4", 2) && strncmp(env, "4a", 2) &&
-            strncmp(env, "4A", 2) && strncmp(env, "5", 2)) {
+        if (strncmp(env, "4", 2) && strncasecmp(env, "4a", 2) &&
+            strncmp(env, "5", 2)) {
             show_msg(MSGERR, "The SOCKS server type you provided was not 4, "
                              "4a or 5: %s. Aborting.\n", env);
             exit(-1);

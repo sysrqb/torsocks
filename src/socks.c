@@ -273,7 +273,7 @@ static int send_socks_request(struct connreq *conn)
 
     if (conn->path->type == 4) {
         char *name = get_pool_entry(pool, &(conn->connaddr.sin_addr));
-        if(name != NULL)
+        if(name != NULL || !strncasecmp(torsocks_servertype, "4a", 2))
             rc = send_socksv4a_request(conn,name);
         else
             rc = send_socksv4_request(conn);
