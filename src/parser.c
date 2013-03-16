@@ -399,7 +399,7 @@ static int handle_server(struct parsedfile *config, int lineno, char *value) {
     /* its resolved immediately before use in torsocks.c */
     if (currentcontext->address == NULL)
         currentcontext->address = strdup(ip);
-    else {
+    else if (!torsocks_server) {
         if (currentcontext == &(config->defaultserver))
             show_msg(MSGERR, "Only one default SOCKS server "
                    "may be specified at line %d in "
@@ -417,15 +417,18 @@ static int handle_server(struct parsedfile *config, int lineno, char *value) {
 static int handle_port(struct parsedfile *config, int lineno, char *value) {
 
     if (currentcontext->port != 0) {
-        if (currentcontext == &(config->defaultserver))
-            show_msg(MSGERR, "Server port may only be specified "
-                   "once for default server, at line %d "
-                   "in configuration file\n", lineno);
-        else
+        if (currentcontext == &(config->defaultserver)) {
+            if (!torsocks_port) {
+                show_msg(MSGERR, "Server port may only be specified "
+                       "once for default server, at line %d "
+                       "in configuration file\n", lineno);
+            }
+        } else {
             show_msg(MSGERR, "Server port may only be specified "
                    "once per path on line %d in configuration "
                    "file. (Path begins on line %d)\n",
                    lineno, currentcontext->lineno);
+        }
     } else {
         errno = 0;
         currentcontext->port = (unsigned short int)
@@ -482,15 +485,18 @@ static int handle_defpass(struct parsedfile *config, int lineno, char *value) {
 static int handle_type(struct parsedfile *config, int lineno, char *value) {
 
     if (currentcontext->type != 0) {
-        if (currentcontext == &(config->defaultserver))
+        if (currentcontext == &(config->defaultserver)) {
+            if (!torsocks_servertype) {
+                show_msg(MSGERR, "Server type may only be specified "
+                                 "once for default server, at line %d "
+                                 "in configuration file\n", lineno);
+            }
+        } else {
             show_msg(MSGERR, "Server type may only be specified "
-                   "once for default server, at line %d "
-                   "in configuration file\n", lineno);
-        else
-            show_msg(MSGERR, "Server type may only be specified "
-                   "once per path on line %d in configuration "
-                   "file. (Path begins on line %d)\n",
-                   lineno, currentcontext->lineno);
+                             "once per path on line %d in configuration "
+                             "file. (Path begins on line %d)\n",
+                             lineno, currentcontext->lineno);
+        }
     } else {
         errno = 0;
         currentcontext->type = (int) strtol(value, (char **)NULL, 10);
