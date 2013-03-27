@@ -150,6 +150,7 @@ static char *txtquery(const char *domain, unsigned int *ttl)
 
 
     *ttl = 0;
+    printf("\n----------------txtquery() TEST----------------------------\n\n");
     if(res_init() < 0) {
         printf("^res_init failed\n");
         return NULL;
@@ -478,6 +479,13 @@ static int connect_internet_test()
     return connect_test(name, ip, port);
 }
 
+static char * txtquery_test()
+{
+    const char *domain = "www.torproject.org";
+    unsigned int ttl;
+    return txtquery(domain, &ttl);
+}
+
 int main() {
 
     getaddrinfo_test();
@@ -488,7 +496,10 @@ int main() {
     connect_internet_test();
     res_internet_tests();
     res_local_tests();
+    txtquery_test();
     icmp_test();
+
+    printf("\n---------------------- TESTS COMPLETE ----------------------\n\n");
 
     return 0;
 }
