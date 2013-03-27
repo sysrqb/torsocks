@@ -214,7 +214,7 @@ case "$1" in
             export TORSOCKS_NOCONF="1"
         ;;
         *)
-            usage
+            usage $0
             exit
         ;;
       esac
@@ -225,11 +225,11 @@ case "$1" in
     while [ ${OPTIND} -gt "1" ]
     do
         shift
-        (( OPTIND -= 1 ))
+        OPTIND=$(( ${OPTIND} - 1 ))
     done
 
     # We want to isolate each stream unless told to do otherwise
-    if [ -z ${TORSOCKS_USERNAME} -a -z ${TORSOCKS_PASSWORD} ]
+    if [ -z "${TORSOCKS_USERNAME}" ] && [ -z "${TORSOCKS_PASSWORD}" ]
     then
         if [ -e "/proc/sys/kernel/random/uuid" ]
         then
@@ -239,16 +239,18 @@ case "$1" in
     fi
 
     # We can't use information we're not given
-    if [[ -n ${TORSOCKS_NOCONF} && \
-          -z ${TORSOCKS_SERVERTYPE} || \
-          -z ${TORSOCKS_SERVER} || \
-	  -z ${TORSOCKS_PORT} ]]
+    if [ -n "${TORSOCKS_NOCONF}" ]
     then
-        echo "ERROR: When you specify -N please provide the following" \
-	     "three values:"
-	echo "    SOCKS server IP address (-i), SOCKS port (-P)" \
-	     "and SOCKS server type (-t)"
-	exit
+        if [ -z "${TORSOCKS_SERVERTYPE}" ] || \
+           [ -z "${TORSOCKS_SERVER}" ] || \
+           [ -z "${TORSOCKS_PORT}" ]
+        then
+            echo "ERROR: When you specify -N please provide following" \
+	         "three values:"
+            echo "    SOCKS server IP address (-i), SOCKS port (-P)" \
+	         "and SOCKS server type (-t)"
+            exit
+        fi
     fi
  
     if [ -z "$@LDPRELOAD@" ]
