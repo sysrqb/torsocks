@@ -94,7 +94,9 @@ static int icmp_test()
     if((sockfd=socket(AF_INET,SOCK_RAW,IPPROTO_ICMP))<0)
     {
         perror("socket");
-        exit(1);
+	if (errno == EPERM)
+	  printf("We aren't allowed to open raw sockets. This is expected.\n");
+        return -1;
     }
 
     memset(datagram,0,400);
@@ -199,7 +201,7 @@ static char *txtquery(const char *domain, unsigned int *ttl)
     do { /* recurse through CNAME rr's */
         pt += size;
         if((len = dn_expand(answer, answend, pt, host, sizeof(host))) < 0) {
-            printf("^second dn_expand failed\n");
+            printf("^dn_expand failed. No TXT record found.\n");
             return NULL;
         }
         printf("^Host: %s\n", host);
@@ -216,7 +218,7 @@ static char *txtquery(const char *domain, unsigned int *ttl)
             printf("^DNS rr overflow\n");
             return NULL;
         }
-    } while(type == T_CNAME);
+    } while(type != T_TXT);
 
     if(type != T_TXT) {
         printf("^Not a TXT record\n");
@@ -267,39 +269,39 @@ static int res_tests(char *ip, char *test) {
     /* Modifying _res directly doesn't work, so we have to use res_n* where available.
        See: http://sourceware.org/ml/libc-help/2009-11/msg00013.html */
     printf("\n---------------------- %s res_query() TEST----------------------\n\n", test);
-    snprintf((char *)host, 127, "www.google.com");
-#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
+    snprintf((char *)host, 127, "google.com");
+/*#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
     ret = res_nquery(&_res, (char *) host, C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
-#else
-    ret = res_query((char *) host, C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
-#endif
+#else*/
+    ret = res_query((const char *) host, C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
+/*#endif*/
     printf("return code: %i\n", ret);
 
     printf("\n---------------------- %s res_search() TEST----------------------\n\n", test);
     memset( dnsreply, '\0', sizeof( dnsreply ));
-#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
+/*#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
     ret = res_nsearch(&_res, (char *) host, C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
-#else
+#else*/
     ret = res_search((char *) host, C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
-#endif
+/*#endif*/
     printf("return code: %i\n", ret);
 
     printf("\n--------------- %s res_querydomain() TEST----------------------\n\n", test);
     memset( dnsreply, '\0', sizeof( dnsreply ));
-#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
+/*#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
     ret = res_nquerydomain(&_res,  "www.google.com", "google.com", C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
-#else
-    ret = res_querydomain("www.google.com", "google.com", C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
-#endif
+#else*/
+    ret = res_querydomain("www", "google.com", C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
+/*#endif*/
     printf("return code: %i\n", ret);
 
     printf("\n---------------------- %s res_send() TEST----------------------\n\n", test);
     memset( dnsreply, '\0', sizeof( dnsreply ));
-#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
+/*#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
     ret = res_nsend(&_res,  host, 32, dnsreply, sizeof( dnsreply ));
-#else
+#else*/
     ret = res_send(host, 32, dnsreply, sizeof( dnsreply ));
-#endif
+/*#endif*/
 printf("return code: %i\n", ret);
 
     return ret;
@@ -391,7 +393,7 @@ static int gethostbyaddr_test() {
 
     printf("\n----------------------gethostbyaddr() TEST-----------------\n\n");
 
-    inet_aton("38.229.70.16", &bar);
+    inet_aton("38.229.72.14", &bar);
     foo=gethostbyaddr(&bar,4,AF_INET);
     if (foo) {
       int i;
@@ -399,6 +401,8 @@ static int gethostbyaddr_test() {
         printf("%s -> %s\n",foo->h_name,inet_ntoa(*(struct in_addr*)foo->h_addr_list[i]));
       for (i=0; foo->h_aliases[i]; ++i)
         printf("  also known as %s\n",foo->h_aliases[i]);
+    } else {
+      printf("gethostbyaddr failed: %s\n", hstrerror(h_errno));
     }
     return 0;
 }
@@ -481,7 +485,7 @@ static int connect_internet_test()
 
 static char * txtquery_test()
 {
-    const char *domain = "www.torproject.org";
+    const char *domain = "google.com";
     unsigned int ttl;
     return txtquery(domain, &ttl);
 }
