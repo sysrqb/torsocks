@@ -66,6 +66,47 @@
 #define PACKETSZ 512
 #endif
 
+int failure = 0;
+int success = 0;
+
+inline static
+void expect_int(int rv, int exp, const char * str)
+{
+    if (rv == exp) {
+        printf("\nRETURNED: %d\n\nTest %s: SUCCESS\n", rv, str);
+	success++;
+    } else {
+        printf("\nRETURNED: %d\n\nTest %s: FAILED\n", rv, str);
+	failure++;
+    }
+}
+
+inline static
+void expect_charstar(const char * str, char * rv, char * exp, int n)
+{
+    if (!strncmp(rv, exp, n)) {
+        printf("\nRETURNED: %s\n\nTest %s: SUCCESS\n", rv, str);
+	success++;
+    }
+    else {
+        printf("\nRETURNED: %s\n\nTest %s: FAILED\n", rv, str);
+	failure++;
+    }
+}
+
+inline static
+void notexpect_charstar(char * rv, char * exp, int n, const char * str)
+{
+    if (strncmp(rv, exp, n)) {
+        printf("\nRETURNED: %s\n\nTest %s: SUCCESS\n", rv, str);
+	success++;
+    }
+    else {
+        printf("\nRETURNED: %s\n\nTest %s: FAILED\n", rv, str);
+	failure++;
+    }
+}
+
 static unsigned short csum (unsigned short *buf, int nwords)
 {
     unsigned long sum;
@@ -94,8 +135,8 @@ static int icmp_test()
     if((sockfd=socket(AF_INET,SOCK_RAW,IPPROTO_ICMP))<0)
     {
         perror("socket");
-	if (errno == EPERM)
-	  printf("We aren't allowed to open raw sockets. This is expected.\n");
+        if (errno == EPERM)
+          printf("We aren't allowed to open raw sockets. This is expected for non-root.\n");
         return -1;
     }
 
@@ -325,7 +366,7 @@ static int udp_test() {
     int sock,ret,wb,flags=0;
     char *ip = "6.6.6.6";
 
-    printf("\n----------------------UDP TEST----------------------\n\n");
+    printf("\n----------------------UDP TESTS----------------------\n");
 
     addr.sin_family=AF_INET;
     addr.sin_port=53;
@@ -350,16 +391,19 @@ static int udp_test() {
     wb=0;
     ret=sendmsg(sock, &msg, flags);
     printf("sendmsg() returned ret=%d wb=%d\n",ret,wb);
+    expect_int(ret, -1, "udp sendmsg");
 
     printf("\n----------------------udp sendto() TEST--------------------\n\n");
     wb=0;
     ret=sendto(sock,testtext,strlen(testtext)+1,wb, (struct sockaddr*)&addr, sizeof(addr));
     ret=sendto(sock,"CiaoCiao",strlen("CiaoCiao")+1,wb, (struct sockaddr*)&addr, sizeof(addr));
     printf("sendto() returned ret=%d wb=%d\n",ret,wb);
+    expect_int(ret, -1, "udp sendto");
 
     printf("\n----------------------udp connect() TEST-------------------\n\n");
     ret=connect(sock,(struct sockaddr*)&addr,sizeof(addr));
     printf("Connect returned ret=%d\n",ret);
+    expect_int(ret, -1, "udp connect");
 
     printf("\n----------------------udp send() TEST----------------------\n\n");
     wb=0;
@@ -367,6 +411,7 @@ static int udp_test() {
     ret=send(sock,"CiaoCiao",strlen("CiaoCiao")+1,wb);
     printf("Note: no interception by torsocks expected as send() requires a socket in a connected state.\n");
     printf("send() returned ret=%d wb=%d\n",ret,wb);
+    expect_int(ret, -1, "udp send");
 
     return 0;
 }
@@ -383,7 +428,8 @@ static int gethostbyname_test() {
         printf("%s -> %s\n",foo->h_name,inet_ntoa(*(struct in_addr*)foo->h_addr_list[i]));
 /*      for (i=0; foo->h_aliases[i]; ++i)
         printf("  also known as %s\n",foo->h_aliases[i]);*/
-    }
+    } else
+      return -1;
     return 0;
 }
 
@@ -403,6 +449,7 @@ static int gethostbyaddr_test() {
         printf("  also known as %s\n",foo->h_aliases[i]);
     } else {
       printf("gethostbyaddr failed: %s\n", hstrerror(h_errno));
+      return -1;
     }
     return 0;
 }
@@ -416,19 +463,19 @@ static int getaddrinfo_test() {
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_INET;    /* Allow IPv4 or IPv6 */
-    hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
+    hints.ai_socktype = SOCK_STREAM; /* Stream socket */
     hints.ai_flags = AI_PASSIVE;    /* For wildcard IP address */
     hints.ai_protocol = 0;          /* Any protocol */
     hints.ai_canonname = NULL;
     hints.ai_addr = NULL;
     hints.ai_next = NULL;
 
-    s = getaddrinfo(NULL, "www.torproject.org", &hints, &result);
+    s = getaddrinfo(NULL, "torproject.org", &hints, &result);
     if (s != 0) {
         printf("getaddrinfo: %s\n", gai_strerror(s));
     }
 
-    return 0;
+    return s;
 }
 
 /* Unavailable in glibc. */
@@ -459,10 +506,10 @@ static int connect_test(const char *name, const char *ip, int port)
     printf("\n---------------------- %s connect() TEST----------------------\n\n", name);
 
     if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
-        return 1;
+        return -1;
 
     if (connect(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0)
-        return 1;
+        return -1;
 
     return 0;
 }
@@ -492,18 +539,20 @@ static char * txtquery_test()
 
 int main() {
 
-    getaddrinfo_test();
+    expect_int(getaddrinfo_test(), EAI_SERVICE, "getaddrinfo_test");
     udp_test();
-    gethostbyaddr_test();
-    gethostbyname_test();
-    connect_local_test();
-    connect_internet_test();
+    expect_int(gethostbyaddr_test(), 0, "gethostbyaddr_test");
+    expect_int(gethostbyname_test(), 0, "gethostbyname_test");
+    expect_int(connect_local_test(), -1, "connect_local_test");
+    expect_int(connect_internet_test(), 0, "connect_internet_test");
     res_internet_tests();
     res_local_tests();
-    txtquery_test();
+    notexpect_charstar(txtquery_test(), "", 1, "txtquery_test");
     icmp_test();
 
     printf("\n---------------------- TESTS COMPLETE ----------------------\n\n");
+
+    printf("\n---------------------- TESTS SUMMARY: %d SUCCESSES, %d FAILURES ----------------------\n\n", success, failure);
 
     return 0;
 }
