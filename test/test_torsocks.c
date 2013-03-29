@@ -281,7 +281,8 @@ static char *txtquery(const char *domain, unsigned int *ttl)
     return txt;
 }
 
-static int res_tests(char *ip, char *test) {
+/** XXX Refactor */
+static int res_tests(char *ip, char *test, int exp[]) {
     unsigned char dnsreply[1024];
     unsigned char host[128];
     int ret = 0, i;
@@ -317,6 +318,7 @@ static int res_tests(char *ip, char *test) {
     ret = res_query((const char *) host, C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
 /*#endif*/
     printf("return code: %i\n", ret);
+    expect_int(ret, exp[0], "res_query");
 
     printf("\n---------------------- %s res_search() TEST----------------------\n\n", test);
     memset( dnsreply, '\0', sizeof( dnsreply ));
@@ -326,6 +328,7 @@ static int res_tests(char *ip, char *test) {
     ret = res_search((char *) host, C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
 /*#endif*/
     printf("return code: %i\n", ret);
+    expect_int(ret, exp[1], "res_search");
 
     printf("\n--------------- %s res_querydomain() TEST----------------------\n\n", test);
     memset( dnsreply, '\0', sizeof( dnsreply ));
@@ -335,6 +338,7 @@ static int res_tests(char *ip, char *test) {
     ret = res_querydomain("www", "google.com", C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
 /*#endif*/
     printf("return code: %i\n", ret);
+    expect_int(ret, exp[2], "res_querydomain");
 
     printf("\n---------------------- %s res_send() TEST----------------------\n\n", test);
     memset( dnsreply, '\0', sizeof( dnsreply ));
@@ -343,7 +347,9 @@ static int res_tests(char *ip, char *test) {
 #else*/
     ret = res_send(host, 32, dnsreply, sizeof( dnsreply ));
 /*#endif*/
-printf("return code: %i\n", ret);
+    printf("return code: %i\n", ret);
+    expect_int(ret, exp[3], "res_send");
+
 
     return ret;
 }
@@ -351,13 +357,15 @@ printf("return code: %i\n", ret);
 static int res_internet_tests() {
     char *ip = "8.8.8.8";
     char *test = "internet";
-    return res_tests(ip, test);
+    int exp[] = {116, 116, -1,-1};
+    return res_tests(ip, test, exp);
 }
 
 static int res_local_tests() {
     char *ip = "192.168.1.1";
     char *test = "local";
-    return res_tests(ip, test);
+    int exp[] = {-1, -1, -1, -1};
+    return res_tests(ip, test, exp);
 }
 
 static int udp_test() {
