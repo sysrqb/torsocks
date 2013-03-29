@@ -562,5 +562,5 @@ int main() {
 
     printf("\n---------------------- TESTS SUMMARY: %d SUCCESSES, %d FAILURES ----------------------\n\n", success, failure);
 
-    return 0;
+    return failure;
 }

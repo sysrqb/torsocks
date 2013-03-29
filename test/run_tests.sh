@@ -33,12 +33,14 @@ if [ ! -f ./test_torsocks ]; then
     exit 1
 fi
 
-torsocks ./test_torsocks > /tmp/newresults.txt 2>&1
-output=`diff expectedresults.txt /tmp/newresults.txt`
-if ["$output" = ""]; then
-  echo "Tests passed"
+$(torsocks ./test_torsocks > /tmp/results.txt 2>&1)
+if [ $? -ne 0 ]
+then
+    tail -n 2 /tmp/results.txt
+    echo "Tests failed! Please create a ticket on https://trac.torproject.org/ and attach /tmp/results.txt"
 else
-  echo "Tests failed. Please post this output to http://code.google.com/p/torsocks/issues/entry"
+    tail -n 2 /tmp/results.txt
+    echo "Tests passed!"
+    rm -f /tmp/newresults.txt
 fi
-rm -f /tmp/newresults.txt
 export TORSOCKS_DEBUG=
