@@ -233,8 +233,8 @@ case "$1" in
     then
         if [ -e "/proc/sys/kernel/random/uuid" ]
         then
-            export TORSOCKS_USERNAME=$(cat /proc/sys/kernel/random/uuid)
-            export TORSOCKS_PASSWORD=$(cat /proc/sys/kernel/random/uuid)
+            export TORSOCKS_USERNAME="$(cat /proc/sys/kernel/random/uuid)"
+            export TORSOCKS_PASSWORD="$(cat /proc/sys/kernel/random/uuid)"
         fi
     fi
 
