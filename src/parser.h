@@ -26,6 +26,8 @@
 
 #define _PARSER_H 1
 
+extern int torsocks_noconf;
+
 /* Structure definitions */
 
 /* Structure representing one server specified in the config */

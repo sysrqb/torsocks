@@ -69,6 +69,13 @@ From 'man compat' in OSX:
 #include "parser.h"
 #include "socks.h"
 
+char * torsocks_user = NULL;
+char * torsocks_pass = NULL;
+char * torsocks_servertype = NULL;
+char * torsocks_server = NULL;
+int torsocks_port;
+
+
 static int connect_server(struct connreq *conn);
 static int send_socks_request(struct connreq *conn);
 static int send_socksv4_request(struct connreq *conn);
@@ -266,7 +273,7 @@ static int send_socks_request(struct connreq *conn)
 
     if (conn->path->type == 4) {
         char *name = get_pool_entry(pool, &(conn->connaddr.sin_addr));
-        if(name != NULL)
+        if(name != NULL || !strncasecmp(torsocks_servertype, "4a", 2))
             rc = send_socksv4a_request(conn,name);
         else
             rc = send_socksv4_request(conn);
@@ -277,15 +284,12 @@ static int send_socks_request(struct connreq *conn)
 
 static int send_socksv4a_request(struct connreq *conn,const char *onion_host)
 {
-    struct passwd *user;
     struct sockreq *thisreq;
     int endOfUser;
-    /* Determine the current username */
-    user = getpwuid(getuid());
 
     thisreq = (struct sockreq *) conn->buffer;
     endOfUser=sizeof(struct sockreq) +
-    (user == NULL ? 0 : strlen(user->pw_name)) + 1;
+    (torsocks_user == NULL ? 0 : strlen(torsocks_user)) + 1;
 
     /* Check the buffer has enough space for the request  */
     /* and the user name                                  */
@@ -305,7 +309,7 @@ static int send_socksv4a_request(struct connreq *conn,const char *onion_host)
 
     /* Copy the username */
     strcpy((char *) thisreq + sizeof(struct sockreq),
-          (user == NULL ? "" : user->pw_name));
+          (torsocks_user == NULL ? "" : torsocks_user));
 
     /* Copy the onion host */
     strcpy((char *) thisreq + endOfUser,
@@ -320,18 +324,16 @@ static int send_socksv4a_request(struct connreq *conn,const char *onion_host)
 
 static int send_socksv4_request(struct connreq *conn)
 {
-    struct passwd *user;
     struct sockreq *thisreq;
 
     /* Determine the current username */
-    user = getpwuid(getuid());
 
     thisreq = (struct sockreq *) conn->buffer;
 
     /* Check the buffer has enough space for the request  */
     /* and the user name                                  */
     conn->datalen = sizeof(struct sockreq) +
-                    (user == NULL ? 0 : strlen(user->pw_name)) + 1;
+                    (torsocks_user == NULL ? 0 : strlen(torsocks_user)) + 1;
     if (sizeof(conn->buffer) < conn->datalen) {
         show_msg(MSGERR, "The SOCKS username is too long");
         conn->state = FAILED;
@@ -346,7 +348,7 @@ static int send_socksv4_request(struct connreq *conn)
 
     /* Copy the username */
     strcpy((char *) thisreq + sizeof(struct sockreq),
-            (user == NULL ? "" : user->pw_name));
+            (torsocks_user == NULL ? "" : torsocks_user));
 
     conn->datadone = 0;
     conn->state = SENDING;
@@ -357,16 +359,27 @@ static int send_socksv4_request(struct connreq *conn)
 
 static int send_socksv5_method(struct connreq *conn)
 {
-    char verstring[] = { 0x05,    /* Version 5 SOCKS */
+    char verstring[] = {  0x05,    /* Version 5 SOCKS */
                           0x02,    /* No. Methods     */
                           0x00,    /* Null Auth       */
                           0x02 };  /* User/Pass Auth  */
+    char verstring_up[] = { 0x05,    /* Version 5 SOCKS */
+                            0x01,    /* No. Methods     */
+                            0x02 };  /* User/Pass Auth  */
+
 
     show_msg(MSGDEBUG, "Constructing V5 method negotiation\n");
     conn->state = SENDING;
     conn->nextstate = SENTV5METHOD;
-    memcpy(conn->buffer, verstring, sizeof(verstring));
-    conn->datalen = sizeof(verstring);
+
+    /* If we were given a username, make sure we use it */
+    if (torsocks_user) {
+        memcpy(conn->buffer, verstring_up, sizeof(verstring_up));
+        conn->datalen = sizeof(verstring_up);
+    } else {
+        memcpy(conn->buffer, verstring, sizeof(verstring));
+        conn->datalen = sizeof(verstring);
+    }
     conn->datadone = 0;
 
     return(0);
@@ -477,7 +490,6 @@ static int recv_buffer(struct connreq *conn)
 
 static int read_socksv5_method(struct connreq *conn)
 {
-    struct passwd *nixuser;
     char *uname, *upass;
 
     /* See if we offered an acceptable method */
@@ -492,24 +504,19 @@ static int read_socksv5_method(struct connreq *conn)
     if ((unsigned short int) conn->buffer[1] == 2) {
         show_msg(MSGDEBUG, "SOCKS V5 server chose username/password authentication\n");
 
-        /* Determine the current *nix username */
-        nixuser = getpwuid(getuid());
-
-        if (((uname = conn->path->defuser) == NULL) &&
-          ((uname = getenv("TORSOCKS_USERNAME")) == NULL) &&
-            ((uname = (nixuser == NULL ? NULL : nixuser->pw_name)) == NULL)) {
-            show_msg(MSGERR, "Could not get SOCKS username from "
-                    "local passwd file, torsocks.conf "
-                    "or $TORSOCKS_USERNAME to authenticate "
-                    "with");
+        if (((uname = torsocks_user) == NULL) && 
+	    ((uname = conn->path->defuser) == NULL)) {
+            show_msg(MSGERR, "Could not retrieve SOCKS username from "
+                    "torsocks.conf and did not find --user command line option "
+		    "with which to authenticate");
             conn->state = FAILED;
             return(ECONNREFUSED);
         }
 
-        if (((upass = getenv("TORSOCKS_PASSWORD")) == NULL) &&
-          ((upass = conn->path->defpass) == NULL)) {
+        if (((upass = torsocks_pass) == NULL) &&
+            ((upass = conn->path->defpass) == NULL)) {
             show_msg(MSGERR, "Need a password in torsocks.conf or "
-                    "$TORSOCKS_PASSWORD to authenticate with");
+                    "--pass command line option to be able to authenticate");
             conn->state = FAILED;
             return(ECONNREFUSED);
         }

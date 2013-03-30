@@ -44,6 +44,12 @@ struct sockrep {
    int32_t ignore2;
 };
 
+extern char * torsocks_user;
+extern char * torsocks_pass;
+extern char * torsocks_servertype;
+extern char * torsocks_server;
+extern int torsocks_port;
+
 /* Structure representing a socket which we are currently proxying */
 struct connreq {
    /* Information about the socket and target */
