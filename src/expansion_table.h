@@ -157,6 +157,9 @@ FUNC        (ERR,    int,                PPOLL_,             ppoll,             
 #endif /* PPOLL_AVAILABLE */
 
 #if EPOLL_AVAILABLE
+FUNC        (ERR,    int,                EPOLL_CREATE_,      epoll_create,                  epoll_create,         "epoll_create")
+FUNC        (ERR,    int,                EPOLL_CREATE1_,     epoll_create1,                 epoll_create1,        "epoll_create1")
+FUNC        (ERR,    int,                EPOLL_CTL_,         epoll_ctl,                     epoll_ctl,            "epoll_ctl")
 FUNC        (ERR,    int,                EPOLL_WAIT_,        epoll_wait,                    epoll_wait,           "epoll_wait")
 FUNC        (ERR,    int,                EPOLL_PWAIT_,       epoll_pwait,                   epoll_pwait,          "epoll_pwait")
 #endif

@@ -751,6 +751,18 @@ linux*)
     NAMES="${NAMES}, sigmask"
     AC_DEFINE_UNQUOTED([EPOLL_PWAIT_SIGNATURE], [${PROTO}],[Description])
     AC_DEFINE_UNQUOTED([EPOLL_PWAIT_ARGNAMES],[${NAMES}],[Argument names])
+    PROTO="int size"
+    NAMES="size"
+    AC_DEFINE_UNQUOTED([EPOLL_CREATE_SIGNATURE], [${PROTO}],[Description])
+    AC_DEFINE_UNQUOTED([EPOLL_CREATE_ARGNAMES],[${NAMES}],[Argument names])
+    PROTO="int flags"
+    NAMES="flags"
+    AC_DEFINE_UNQUOTED([EPOLL_CREATE1_SIGNATURE], [${PROTO}],[Description])
+    AC_DEFINE_UNQUOTED([EPOLL_CREATE1_ARGNAMES],[${NAMES}],[Argument names])
+    PROTO="int epfd, int op, int fd, struct epoll_event *event"
+    NAMES="epfd, op, fd, event"
+    AC_DEFINE_UNQUOTED([EPOLL_CTL_SIGNATURE], [${PROTO}],[Description])
+    AC_DEFINE_UNQUOTED([EPOLL_CTL_ARGNAMES],[${NAMES}],[Argument names])
   fi
 
 
