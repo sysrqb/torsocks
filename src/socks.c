@@ -85,6 +85,7 @@ static int send_socksv4a_request(struct connreq *conn, const char *onion_host);
 
 dead_pool *pool = NULL;
 struct connreq *requests = NULL;
+struct ts_eventreq_mapping *evsocks = NULL;
 
 struct connreq *new_socks_request(int sockid, struct sockaddr_in *connaddr,
                                          struct sockaddr_in *serveraddr,
@@ -147,10 +148,62 @@ struct connreq *find_socks_request(int sockid, int includefinished)
     return(NULL);
 }
 
+struct ts_eventreq_mapping *find_eventreq_map(int evfd)
+{
+    struct ts_eventreq_mapping *currpair;
+
+    for (currpair = evsocks; currpair != NULL; currpair = currpair->next) {
+        if (currpair->evfd == evfd)
+	    return currpair;
+    }
+    return NULL;
+}
+
+struct ts_eventreq_revmapping *
+find_fd_in_eventreq(struct ts_eventreq_mapping * evfd, int fd)
+{
+    struct ts_eventreq_revmapping * currpair;
+
+    for (currpair = evfd->fds; currpair != NULL; currpair = currpair->next) {
+        if (currpair->their_fd == fd)
+	    return currpair;
+    }
+    return NULL;
+}
+
+struct ts_eventreq_revmapping *
+remove_fd_from_eventreq(struct ts_eventreq_mapping *evfd, int fd) {
+    struct ts_eventreq_revmapping * targetpair, * currpair, * nextpair;
+    
+    if (evfd->fds == NULL)
+        return NULL;
+    if (evfd->fds->their_fd == fd) {
+        targetpair = evfd->fds;
+	evfd->fds = evfd->fds->next;
+	return targetpair;
+    } else {
+        currpair = evfd->fds;
+        while (currpair->next != NULL) {
+	    nextpair = currpair->next;
+            if (nextpair->their_fd == fd) {
+	        targetpair = nextpair;
+		currpair->next = nextpair->next;
+		return nextpair;
+            } else
+		currpair = nextpair;
+	        nextpair = nextpair->next;
+        }
+	return NULL;
+    }
+}
+
 int handle_request(struct connreq *conn)
 {
     int rc = 0;
     int i = 0;
+
+    if (conn == NULL)
+        return -1;
 
     show_msg(MSGDEBUG, "Beginning handle loop for socket %d\n", conn->sockid);
 

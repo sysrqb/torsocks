@@ -76,8 +76,30 @@ struct connreq {
    char buffer[2048];
 
    int using_optdata;
+   
+   struct ts_eventreq_revmapping * eventfd;
 
    struct connreq *next;
+};
+
+struct ts_eventreq_revmapping {
+    /* Pointer back to event-based fd */
+    struct ts_eventreq_mapping *evfd;
+    /* Applications FD */
+    int their_fd;
+    /* Our dup of their_fd */
+    int our_fd;
+    /* Flags set on socket */
+    unsigned int flags;
+    struct ts_eventreq_revmapping *next;
+};
+
+struct ts_eventreq_mapping {
+    /* Event FD */
+    int evfd;
+    /* List of FDs assigned to evfd */
+    struct ts_eventreq_revmapping *fds;
+    struct ts_eventreq_mapping *next;
 };
 
 /* Connection statuses */
@@ -107,12 +129,18 @@ struct connreq {
 /* Global Declarations */
 extern dead_pool *pool;
 extern struct connreq *requests;
+extern struct ts_eventreq_mapping *evsocks;
 
 struct connreq *new_socks_request(int sockid, struct sockaddr_in *connaddr,
                                          struct sockaddr_in *serveraddr,
                                          struct serverent *path);
 void kill_socks_request(struct connreq *conn);
 struct connreq *find_socks_request(int sockid, int includefailed);
+struct ts_eventreq_mapping *find_eventreq_map(int evfd);
+struct ts_eventreq_revmapping *
+find_fd_in_eventreq(struct ts_eventreq_mapping * evfd, int fd);
+struct ts_eventreq_revmapping *
+remove_fd_from_eventreq(struct ts_eventreq_mapping *evfd, int fd);
 int handle_request(struct connreq *conn);
 
 #endif
