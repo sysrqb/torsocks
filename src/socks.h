@@ -86,9 +86,11 @@ struct ts_eventreq_revmapping {
     /* Pointer back to event-based fd */
     struct ts_eventreq_mapping *evfd;
     /* Applications FD */
-    int their_fd;
+    int fd;
     /* Our dup of their_fd */
     int our_fd;
+    size_t strlen;
+    int data;
     /* Flags set on socket */
     unsigned int flags;
     struct ts_eventreq_revmapping *next;

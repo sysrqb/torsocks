@@ -368,6 +368,404 @@ static int udp_test() {
     return 0;
 }
 
+#if EPOLL_AVAILABLE
+static int epoll_test() {
+    int efd, fd1, fd2, s, rv, i;
+    int wrote1, wrote2;
+    int read1, read2;
+    int readbuf1, readbuf2;
+    struct epoll_event event, *events;
+    struct addrinfo hints, *results, *rp;
+    char buf[10];
+
+    printf("\n----------------------epoll 1 TESTS -----------------\n\n");
+
+    printf("\n----------------------epoll_create() TEST-----------------\n\n");
+
+    efd = epoll_create(10);
+    if (efd == -1) {
+        printf("epoll_create: %s\n", strerror(errno));
+        return -1;
+    }
+
+    printf("\n----------------------epoll_ctl() 1 TEST-----------------\n\n");
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;
+    
+    s = getaddrinfo("38.229.72.22", "80", &hints, &results);
+    if (s != 0) {
+        printf("getaddrinfo: %s\n", gai_strerror(s));
+        return -1;
+    }
+    
+    for (rp = results; rp != NULL; rp = rp->ai_next) {
+        fd1 = socket(rp->ai_family, rp->ai_socktype,
+	             rp->ai_protocol);
+        if (fd1 == -1)
+	    continue;
+        if (connect(fd1, rp->ai_addr, rp->ai_addrlen) != -1)
+	    break;
+	close(fd1);
+    }
+
+    if (rp == NULL) {
+        printf("getaddrinfo: Could not connect to www.torproject.org\n");
+        return -1;
+    }
+
+    event.events = EPOLLIN | EPOLLOUT | EPOLLERR;
+    event.data.ptr = NULL;
+    event.data.fd = fd1;
+    
+    if (epoll_ctl(efd, EPOLL_CTL_ADD, fd1, &event) == -1) {
+        printf("epoll_ctl: %s\n", strerror(errno));
+	close(efd);
+	close(fd1);
+        return -1;
+    }
+
+    printf("\n----------------------epoll_ctl() 2 TEST-----------------\n\n");
+
+    for (rp = results; rp != NULL; rp = rp->ai_next) {
+        fd2 = socket(rp->ai_family, rp->ai_socktype,
+	             rp->ai_protocol);
+        if (fd2 == -1)
+	    continue;
+        if (connect(fd2, rp->ai_addr, rp->ai_addrlen) != -1)
+	    break;
+	close(fd2);
+    }
+
+    if (rp == NULL) {
+        printf("getaddrinfo: Could not connect to www.torproject.org\n");
+        return -1;
+    }
+
+    freeaddrinfo(results);
+
+    event.data.ptr = NULL;
+    event.data.fd = fd2;
+    
+    if (epoll_ctl(efd, EPOLL_CTL_ADD, fd2, &event) == -1) {
+        printf("epoll_ctl: %s\n", strerror(errno));
+	close(efd);
+	close(fd1);
+	close(fd2);
+        return -1;
+    }
+
+    printf("\n----------------------epoll_wait() TEST-----------------\n\n");
+
+    events = (struct epoll_event *) malloc(sizeof(event) * 2);
+    wrote1 = wrote2 = 0;
+    read1 = read2 = 0;
+    readbuf1 = readbuf2 = -1;
+    while (1) {
+        if ((rv = epoll_wait(efd, events, 2, 0)) == -1) {
+            printf("epoll_wait: %s\n", strerror(errno));
+            close(efd);
+            close(fd1);
+            close(fd2);
+            return -1;
+        }
+
+        int retval;
+        if (rv > 0) {
+            for (i = 0; i < rv; i++) {
+                /*printf("Event on %d. We are %d and %d\n", events[i].data.fd, fd1, fd2);*/
+	        if (events[i].data.fd == fd1) {
+                    /*printf("On %d, event %s\n", fd1, ((events[i].events & EPOLLIN) ? "read" : (events[i].events & EPOLLOUT) ? "write" : "other"));
+                    printf("wrote1 = %d. Can we also read? %s\n", wrote1, ((events[i].events & EPOLLIN) ? "yes" : "no"));*/
+                    if ((events[i].events & EPOLLOUT) && !wrote1) {
+                        if ((retval = write(fd1, "GET\n", 5)) == -1) {
+                            printf("Write failed. %s\n", strerror(errno));
+                            close(efd);
+                            close(fd1);
+                            close(fd2);
+                            return -1;
+                        }
+		        wrote1 = 1;
+                    } else if (events[i].events & EPOLLIN) {
+                        readbuf1 = read(fd1, &buf, 10);
+                        /*printf("readbuf1 = %d\n", readbuf1);*/
+                        if (readbuf1 == -1) {
+                            printf("Read failed. %s\n", strerror(errno));
+                            close(efd);
+                            close(fd1);
+                            close(fd2);
+                            return -1;
+                        } else if (readbuf1 == 0) {
+                            if (epoll_ctl(efd, EPOLL_CTL_DEL, fd1, &event) == -1) {
+                                printf("epoll_ctl: %s\n", strerror(errno));
+                                close(efd);
+                                close(fd1);
+                                close(fd2);
+                                return -1;
+                            }
+                            continue;
+                        } else {
+                            read1 += readbuf1;
+                        }
+                    }
+                    continue;
+                } else if (events[i].data.fd == fd2) {
+                    /*printf("On %d, event %s\n", fd2, ((events[i].events & EPOLLIN) ? "read" : (events[i].events & EPOLLOUT) ? "write" : "other"));
+                      printf("wrote2 = %d. Can we also read? %s\n", wrote2, ((events[i].events & EPOLLIN) ? "yes" : "no"));*/
+                    if ((events[i].events & EPOLLOUT) && !wrote2) {
+                        if ((retval = write(fd2, "GET\n", 5)) == -1) {
+                            printf("Write failed. %s\n", strerror(errno));
+                            close(efd);
+                            close(fd1);
+                            close(fd2);
+                            return -1;
+                        }
+                        wrote2 = 1;
+                    } else if (events[i].events & EPOLLIN) {
+                        readbuf2 = read(fd2, &buf, 10);
+                        /*printf("readbuf2 = %d\n", readbuf2);*/
+                        if (readbuf2 == -1) {
+                            printf("Read failed. %s\n", strerror(errno));
+                            close(efd);
+                            close(fd1);
+                            close(fd2);
+                            return -1;
+                        } else if (readbuf2 == 0) {
+                            if (epoll_ctl(efd, EPOLL_CTL_DEL, fd2, &event) == -1) {
+                                printf("epoll_ctl: %s\n", strerror(errno));
+                                close(efd);
+                                close(fd1);
+                                close(fd2);
+                                return -1;
+                            }
+                            continue;
+                        } else {
+                            read2 += readbuf2;
+                        }
+                    }
+                    continue;
+                }
+            }
+        } else {
+            if ((readbuf1 == 0) && (readbuf2 == 0))
+                break;
+        }
+    }
+    /*printf("fd1 read %d bytes. fd2 read %d bytes\n", read1, read2);*/
+
+    free(events);
+    close(efd);
+    close(fd1);
+    close(fd2);
+    return ((read1 == 488) && (read1 == read2));
+}
+
+static int epoll_test2() {
+    int efd, fd1, fd2, s, rv, i;
+    int wrote1, wrote2;
+    int read1, read2;
+    int readbuf1, readbuf2;
+    struct epoll_event event, *events;
+    struct addrinfo hints, *results, *rp;
+    char buf[10];
+
+
+    printf("\n----------------------epoll 2 TESTS -----------------\n\n");
+
+    printf("\n----------------------epoll_create1() TEST-----------------\n\n");
+
+    efd = epoll_create1(0);
+    if (efd == -1) {
+        printf("epoll_create1: %s\n", strerror(errno));
+        return -1;
+    }
+
+    printf("\n----------------------epoll_ctl() 1 TEST-----------------\n\n");
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;
+    
+    s = getaddrinfo("38.229.72.22", "80", &hints, &results);
+    if (s != 0) {
+        printf("getaddrinfo: %s\n", gai_strerror(s));
+        return -1;
+    }
+    
+    for (rp = results; rp != NULL; rp = rp->ai_next) {
+        fd1 = socket(rp->ai_family, rp->ai_socktype,
+	             rp->ai_protocol);
+        if (fd1 == -1)
+	    continue;
+        if (connect(fd1, rp->ai_addr, rp->ai_addrlen) != -1)
+	    break;
+	close(fd1);
+    }
+
+    if (rp == NULL) {
+        printf("getaddrinfo: Could not connect to www.torproject.org\n");
+        return -1;
+    }
+
+    event.events = EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLET;
+    event.data.ptr = NULL;
+    event.data.fd = fd1;
+    
+    if (epoll_ctl(efd, EPOLL_CTL_ADD, fd1, &event) == -1) {
+        printf("epoll_ctl: %s\n", strerror(errno));
+	close(efd);
+	close(fd1);
+        return -1;
+    }
+
+    printf("\n----------------------epoll_ctl() 2 TEST-----------------\n\n");
+
+    for (rp = results; rp != NULL; rp = rp->ai_next) {
+        fd2 = socket(rp->ai_family, rp->ai_socktype,
+	             rp->ai_protocol);
+        if (fd2 == -1)
+	    continue;
+        if (connect(fd2, rp->ai_addr, rp->ai_addrlen) != -1)
+	    break;
+	close(fd2);
+    }
+
+    if (rp == NULL) {
+        printf("getaddrinfo: Could not connect to www.torproject.org\n");
+        return -1;
+    }
+
+    freeaddrinfo(results);
+
+    event.data.ptr = NULL;
+    event.data.fd = fd2;
+    
+    if (epoll_ctl(efd, EPOLL_CTL_ADD, fd2, &event) == -1) {
+        printf("epoll_ctl: %s\n", strerror(errno));
+	close(efd);
+	close(fd1);
+	close(fd2);
+        return -1;
+    }
+
+    printf("\n----------------------epoll_pwait() TEST-----------------\n\n");
+
+    events = (struct epoll_event *) malloc(sizeof(event) * 2);
+    wrote1 = wrote2 = 0;
+    read1 = read2 = 0;
+    readbuf1 = readbuf2 = -1;
+    while (1) {
+	/*printf("Calling epoll_pwait\n");*/
+        if ((rv = epoll_wait(efd, events, 2, 0)) == -1) {
+            printf("epoll_wait: %s\n", strerror(errno));
+            close(efd);
+            close(fd1);
+            close(fd2);
+            return -1;
+        }
+
+        int retval;
+        if (rv > 0) {
+            for (i = 0; i < rv; i++) {
+                /*printf("Event on %d. We are %d and %d\n", events[i].data.fd, fd1, fd2);*/
+	        if (events[i].data.fd == fd1) {
+                    /*printf("On %d, event %s\n", fd1, ((events[i].events & EPOLLIN) ? "read" : (events[i].events & EPOLLOUT) ? "write" : "other"));
+                    printf("wrote1 = %d. Can we also read? %s\n", wrote1, ((events[i].events & EPOLLIN) ? "yes" : "no"));*/
+                    if ((events[i].events & EPOLLOUT) && !wrote1) {
+                        if ((retval = write(fd1, "GET\n", 5)) == -1) {
+                            printf("Write failed. %s\n", strerror(errno));
+                            close(efd);
+                            close(fd1);
+                            close(fd2);
+                            return -1;
+                        }
+		        wrote1 = 1;
+                    } else if (events[i].events & EPOLLIN) {
+                        while (readbuf1 != 0) {
+                            readbuf1 = read(fd1, &buf, 10);
+                            /*printf("readbuf1 = %d\n", readbuf1);*/
+                            if (readbuf1 == -1) {
+                                printf("Read failed. %s\n", strerror(errno));
+                                close(efd);
+                                close(fd1);
+                                close(fd2);
+                                return -1;
+                            } else if (readbuf1 == 0) {
+                                if (epoll_ctl(efd, EPOLL_CTL_DEL, fd1, &event) == -1) {
+                                    printf("epoll_ctl: %s\n", strerror(errno));
+                                    close(efd);
+                                    close(fd1);
+                                    close(fd2);
+                                   return -1;
+                                }
+                                break;
+                            } else {
+                                read1 += readbuf1;
+                            }
+                        }
+                    }
+                    continue;
+                } else if (events[i].data.fd == fd2) {
+                   /* printf("On %d, event %s\n", fd2, ((events[i].events & EPOLLIN) ? "read" : (events[i].events & EPOLLOUT) ? "write" : "other"));
+                    printf("wrote2 = %d. Can we also read? %s\n", wrote2, ((events[i].events & EPOLLIN) ? "yes" : "no"));*/
+                    if ((events[i].events & EPOLLOUT) && !wrote2) {
+                        if ((retval = write(fd2, "GET\n", 5)) == -1) {
+                            printf("Write failed. %s\n", strerror(errno));
+                            close(efd);
+                            close(fd1);
+                            close(fd2);
+                            return -1;
+                        }
+                        wrote2 = 1;
+                    } else if (events[i].events & EPOLLIN) {
+                        while (readbuf2 != 0) {
+                            readbuf2 = read(fd2, &buf, 10);
+                            /*printf("readbuf2 = %d\n", readbuf2);*/
+                            if (readbuf2 == -1) {
+                                printf("Read failed. %s\n", strerror(errno));
+                                close(efd);
+                                close(fd1);
+                                close(fd2);
+                                return -1;
+                            } else if (readbuf2 == 0) {
+                                if (epoll_ctl(efd, EPOLL_CTL_DEL, fd2, &event) == -1) {
+                                    printf("epoll_ctl: %s\n", strerror(errno));
+                                    close(efd);
+                                    close(fd1);
+                                    close(fd2);
+                                    return -1;
+                                }
+                                break;
+                            } else {
+                                read2 += readbuf2;
+                            }
+                        }
+                    }
+                    continue;
+                }
+            }
+        } else {
+            if ((readbuf1 == 0) && (readbuf2 == 0))
+                break;
+	    /*printf("No events, but we're not done yet!\n");*/
+        }
+	fflush(NULL);
+    }
+    /*printf("fd1 read %d bytes. fd2 read %d bytes\n", read1, read2);*/
+
+    free(events);
+    close(efd);
+    close(fd1);
+    close(fd2);
+    return ((read1 == 488) && (read1 == read2));
+}
+#endif
+
 static int gethostbyname_test() {
     struct hostent *foo;
 

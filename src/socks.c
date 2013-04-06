@@ -165,7 +165,7 @@ find_fd_in_eventreq(struct ts_eventreq_mapping * evfd, int fd)
     struct ts_eventreq_revmapping * currpair;
 
     for (currpair = evfd->fds; currpair != NULL; currpair = currpair->next) {
-        if (currpair->their_fd == fd)
+        if (currpair->fd == fd)
 	    return currpair;
     }
     return NULL;
@@ -177,7 +177,7 @@ remove_fd_from_eventreq(struct ts_eventreq_mapping *evfd, int fd) {
     
     if (evfd->fds == NULL)
         return NULL;
-    if (evfd->fds->their_fd == fd) {
+    if (evfd->fds->fd == fd) {
         targetpair = evfd->fds;
 	evfd->fds = evfd->fds->next;
 	return targetpair;
@@ -185,7 +185,7 @@ remove_fd_from_eventreq(struct ts_eventreq_mapping *evfd, int fd) {
         currpair = evfd->fds;
         while (currpair->next != NULL) {
 	    nextpair = currpair->next;
-            if (nextpair->their_fd == fd) {
+            if (nextpair->fd == fd) {
 	        targetpair = nextpair;
 		currpair->next = nextpair->next;
 		return nextpair;

@@ -51,6 +51,7 @@ const char *torsocks_progname = "libtorsocks";         /* Name used in err msgs 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <dlfcn.h>
 #include <sys/types.h>
 #include <string.h>
@@ -853,6 +854,8 @@ int torsocks_close_guts(CLOSE_SIGNATURE, int (*original_close)(CLOSE_SIGNATURE))
 {
     int rc;
     struct connreq *conn;
+    struct ts_eventreq_revmapping * revevfd;
+    struct ts_eventreq_mapping * evfd;
 
     /* If we're not currently managing any requests we can just
       * leave here */
@@ -877,6 +880,14 @@ int torsocks_close_guts(CLOSE_SIGNATURE, int (*original_close)(CLOSE_SIGNATURE))
         show_msg(MSGDEBUG, "Call to close() received on file descriptor "
                             "%d which is a connection request of status %d\n",
                  conn->sockid, conn->state);
+	evfd = find_eventreq_map(fd);
+	if (evfd != NULL) {
+            revevfd = remove_fd_from_eventreq(evfd, fd);
+	    if (revevfd != NULL) {
+	        original_close(revevfd->our_fd);
+	        free(revevfd);
+            }
+        }
         kill_socks_request(conn);
     }
 
@@ -1510,29 +1521,327 @@ int torsocks_pselect_guts(PSELECT_SIGNATURE, int(*original_pselect)(PSELECT_SIGN
 }
 
 #if EPOLL_AVAILABLE
-int torsocks_epoll_wait_guts(EPOLL_WAIT_SIGNATURE, int(*original_epoll_wait)(EPOLL_WAIT_SIGNATURE))
+inline int torsocks_epoll_create_common(int efd)
 {
+    struct ts_eventreq_mapping *mapping;
+
+    if ((mapping = (struct ts_eventreq_mapping *)malloc(sizeof(*mapping))) == NULL) {
+        /* Could not malloc, we're stuffed */
+        show_msg(MSGERR, "epoll_create_common: "
+                         "Could not allocate memory for new mapping\n");
+        return -1;
+    }
+
+    if (evsocks == NULL) {
+        evsocks = mapping;
+        mapping->evfd = efd;
+	mapping->fds = NULL;
+	mapping->next = NULL;
+    } else {
+	mapping->fds = NULL;
+        mapping->evfd = efd;
+        mapping->next = evsocks;
+	evsocks = mapping;
+    }
+    return efd;
+}
+
+int torsocks_epoll_create_guts(EPOLL_CREATE_SIGNATURE, int (*original_epoll_create)(EPOLL_CREATE_SIGNATURE))
+{
+    int efd;
+
     /* If the real epoll_wait doesn't exist, we're stuffed */
-    if (original_epoll_wait == NULL) {
-        show_msg(MSGERR, "Unresolved symbol: epoll_wait\n");
+    if (original_epoll_create == NULL) {
+        show_msg(MSGERR, "Unresolved symbol: epoll_create\n");
+        return -1;
+    }
+
+    show_msg(MSGTEST, "Got epoll_create request\n");
+
+    if ((efd = original_epoll_create(size)) == -1)
+        return -1;
+    else
+        show_msg(MSGDEBUG, "epoll_create: %d\n", efd);
+
+    return torsocks_epoll_create_common(efd);
+}
+
+int torsocks_epoll_create1_guts(EPOLL_CREATE1_SIGNATURE, int (*original_epoll_create1)(EPOLL_CREATE1_SIGNATURE))
+{
+    int efd;
+
+    /* If the real epoll_wait doesn't exist, we're stuffed */
+    if (original_epoll_create1 == NULL) {
+        show_msg(MSGERR, "Unresolved symbol: epoll_create1\n");
         return(-1);
     }
 
-    show_msg(MSGTEST, "Got epoll_wait request\n");
+    show_msg(MSGTEST, "Got epoll_create1 request\n");
 
-    return original_epoll_wait(epfd, events, maxevents, timeout);
+    if ((efd = original_epoll_create1(flags)) == -1)
+        return -1;
+    else
+        show_msg(MSGDEBUG, "epoll_create1: %d\n", efd);
+    
+    return torsocks_epoll_create_common(efd);
+}
+
+int torsocks_epoll_ctl_guts(EPOLL_CTL_SIGNATURE, int (*original_epoll_ctl)(EPOLL_CTL_SIGNATURE))
+{
+    struct ts_eventreq_mapping * currmap;
+    struct ts_eventreq_revmapping * currpair;
+    struct connreq * conn;
+    struct stat statbuf;
+    int rv;
+
+    /* If the real epoll_wait doesn't exist, we're stuffed */
+    if (original_epoll_ctl == NULL) {
+        show_msg(MSGERR, "Unresolved symbol: epoll_ctl\n");
+        return -1;
+    }
+
+    show_msg(MSGTEST, "Got epoll_ctl request\n");
+    
+
+    /* If it's not a socket, we don't need to catch it */
+    if (fstat(fd, &statbuf)) {
+        show_msg(MSGDEBUG, "epoll_ctl: could not stat fd!\n");
+	return -1;
+    }
+    if (! S_ISSOCK(statbuf.st_mode)) {
+        show_msg(MSGDEBUG, "epoll_ctl: fd is not a socket, passing through.\n");
+        return original_epoll_ctl(epfd, op, fd, event);
+    }
+
+    currmap = find_eventreq_map(epfd);
+    if (currmap == NULL) {
+        show_msg(MSGDEBUG, "epoll_ctl: Could not find epfd. Was it created "
+	                   "with epoll_create?\n");
+        errno = EBADF;
+        return -1;
+    }
+    rv = original_epoll_ctl(epfd, op, fd, event);
+    if (rv == -1) {
+        show_msg(MSGDEBUG, "epoll_ctl: original_epoll_ctl returned -1\n");
+	show_msg(MSGDEBUG, "epoll_ctl: %d\n", epfd);
+        return -1;
+    }
+
+    if (op & EPOLL_CTL_ADD) {
+        currpair =
+          (struct ts_eventreq_revmapping *)malloc(sizeof(*currpair));
+        if (currpair == NULL) {
+            /* Could not malloc, we're stuffed */
+            show_msg(MSGERR, "epoll_ctl: "
+                             "Could not allocate memory for new revmapping\n");
+            errno = ENOMEM;
+	    return -1;
+        }
+        currpair->evfd = currmap;
+        currpair->fd = fd;
+        /* Copy the value that the application will use
+	 * and put the fd in it's place, if it's not currently there.
+	 */
+	if (event->data.fd != fd) {
+            currpair->strlen = sizeof(int);
+	    memcpy(&(currpair->data), &(event->data.fd), currpair->strlen);
+            event->data.fd = fd;
+	} else {
+	    currpair->strlen = 0;
+	}
+        currpair->flags = event->events;
+        currpair->next = currmap->fds;
+        currmap->fds = currpair;
+
+	conn = find_socks_request(fd, 1);
+	if (conn != NULL)
+	    conn->eventfd = currpair;
+    } else if (op & EPOLL_CTL_MOD) {
+        currpair = find_fd_in_eventreq(currmap, fd);
+        if (currpair != NULL) {
+            /* We're still tracking this fd.
+	     * Copy the value that the application will use
+	     * and put the fd in it's place, if it's not currently there.
+	     */
+	    if (event->data.fd != fd) {
+                currpair->strlen = sizeof(int);
+	        memcpy(&(currpair->data), &(event->data.fd), currpair->strlen);
+                event->data.fd = fd;
+	    } else {
+	        currpair->strlen = 0;
+            }
+            currpair->flags |= event->events;
+	}
+    } else if (op & EPOLL_CTL_DEL) {
+        currpair = remove_fd_from_eventreq(currmap, fd);
+        if (currpair != NULL) {
+	    conn = find_socks_request(currpair->fd, 1);
+	    conn->eventfd = NULL;
+	    free(currpair);
+        }
+    }
+    return 0;
+}
+
+inline int torsocks_epoll_wait_common(struct epoll_event *events, int nevents,
+                                      struct ts_eventreq_mapping * evfd) {
+    struct ts_eventreq_revmapping * fds;
+    struct epoll_event *their_events;
+    struct connreq *conn;
+    int i, *idxarr, idx, j;
+    
+    if (events == NULL)
+        return -1;
+    if (evfd == NULL)
+        return -1;
+
+    idxarr = (int *)malloc(sizeof(*idxarr)*nevents);
+    if (idxarr == NULL)
+        return -1;
+
+    idx = 0;
+    memset(idxarr, 0, sizeof(int)*nevents);
+    if (nevents > 0) {
+        show_msg(MSGDEBUG, "epoll_wait: %d events\n", nevents);
+	/* Find our FDs */
+        for (i = 0; i < nevents; i++) {
+            for (fds = evfd->fds; fds != NULL; fds = fds->next) {
+                if (events[i].data.fd == fds->fd) {
+                    if (fds->flags & events[i].events) {
+                        show_msg(MSGDEBUG, "epoll_wait: event on %d\n", fds->fd);
+                        show_msg(MSGDEBUG, "epoll_wait: Is %s%s%s event(s)\n",
+                                 ((events[i].events & EPOLLIN) ? "read" : ""),
+                                  (events[i].events & EPOLLOUT ? " write" : ""),
+                                  (events[i].events & EPOLLERR ? " error" : ""));
+                        idxarr[i] = fds->fd;
+                        conn = find_socks_request(fds->fd, 1);
+
+                        /* If the connection is already complete we already
+                         * stopped tracking this fd */
+                        if (conn == NULL) {
+                            show_msg(MSGDEBUG, "epoll_wait: We're not watching it. "
+			                       "SOCKS conn must be complete.\n");
+                            idxarr[i] = -fds->fd;
+                            idx++;
+                            continue;
+                        }
+                        handle_request(conn);
+                        /* If the connect to the SOCKS server is not yet
+                         * complete, then we don't want to return an event
+                         * for that fd
+                         */
+                        if ((conn->state != FAILED) &&
+                            (conn->state != DONE)) {
+                            show_msg(MSGDEBUG, "epoll_wait: We're not done with it yet\n");
+                            continue;
+                        } else if (conn->state == DONE) {
+                            /* If we've established the connection, then
+                             * we need to stop tracking this fd and let
+                             * the client know it's ready
+                             */
+                            show_msg(MSGDEBUG, "epoll_wait: Ok, done with %d, removing from our list\n", fds->fd);
+                            free(remove_fd_from_eventreq(evfd, fds->fd));
+                            idxarr[i] = -fds->fd;
+                            idx++;
+                        }
+                    }
+                } else {
+                    show_msg(MSGDEBUG, "epoll_wait: Not one of ours. fd %d\n", events[i].data.fd);
+                }
+            }
+            if (evfd->fds == NULL) {
+                show_msg(MSGDEBUG, "epoll_wait: Not one of ours. fd %d\n", events[i].data.fd);
+            }
+        }
+    } else {
+        free(idxarr);
+        return 0;
+    }
+
+
+    /* Each offset of the array that isn't positive will be passed on.
+     * We need to reset all values of event->data if we modified it because
+     * the application won't recognize it otherwise
+     */
+    if (idx > 0) {
+        their_events = (struct epoll_event *)malloc(sizeof(*their_events)*idx);
+        if (their_events == NULL)
+            return -1;
+
+        for (i = 0, j = 0; i < nevents; i++) {
+            /* Not one of our sockets, so just pass it through */
+            if (idxarr[i] == 0)
+                memcpy((void *)&their_events[j++], (void *)&events[i], sizeof(*their_events));
+	    /* We want to return it if we're done with it */
+	    else if ((idxarr[i] < 0) && (-idxarr[i]) == events[i].data.fd) {
+	        fds = find_fd_in_eventreq(evfd, events[i].data.fd);
+	        if (fds == NULL)
+	            continue;
+	        if (fds->strlen > 0)
+	            memcpy(&(events[i].data.fd), &(fds->data), fds->strlen);
+                memcpy((void *)&their_events[j++], (void *)&events[i], sizeof(*their_events));
+            }
+        }
+
+        memcpy(events, their_events, sizeof(*events)*j);
+        free(their_events);
+    } else {
+        j = 0;
+    }
+    free(idxarr);
+    show_msg(MSGDEBUG, "epoll_wait: returning %d events\n", j);
+    return j;
+}
+
+int torsocks_epoll_wait_guts(EPOLL_WAIT_SIGNATURE, int(*original_epoll_wait)(EPOLL_WAIT_SIGNATURE))
+{
+    struct ts_eventreq_mapping * evfd;
+    int rv;
+
+    /* If the real epoll_wait doesn't exist, we're stuffed */
+    if (original_epoll_wait == NULL) {
+        show_msg(MSGERR, "Unresolved symbol: epoll_wait\n");
+        return -1;
+    }
+
+    show_msg(MSGTEST, "Got epoll_wait request\n");
+    
+    evfd = find_eventreq_map(epfd);
+    if (evfd == NULL) {
+        errno = EBADF;
+        return -1;
+    }
+    
+    rv = original_epoll_wait(epfd, events, maxevents, timeout);
+    if (rv == -1)
+        return -1;
+
+    return torsocks_epoll_wait_common(events, rv, evfd);
 }
 
 int torsocks_epoll_pwait_guts(EPOLL_PWAIT_SIGNATURE, int(*original_epoll_pwait)(EPOLL_PWAIT_SIGNATURE))
 {
+    struct ts_eventreq_mapping * evfd;
+    int rv;
+
     /* If the real epoll_pwait doesn't exist, we're stuffed */
     if (original_epoll_pwait == NULL) {
         show_msg(MSGERR, "Unresolved symbol: epoll_pwait\n");
-        return(-1);
+        return -1;
     }
 
     show_msg(MSGTEST, "Got epoll_pwait request\n");
+    
+    evfd = find_eventreq_map(epfd);
+    if (evfd == NULL) {
+        errno = EBADF;
+	return -1;
+    }
+    
+    rv = original_epoll_pwait(epfd, events, maxevents, timeout, sigmask);
+    if (rv == -1)
+        return -1;
 
-    return original_epoll_pwait(epfd, events, maxevents, timeout, sigmask);
+    return torsocks_epoll_wait_common(events, rv, evfd);
 }
 #endif
