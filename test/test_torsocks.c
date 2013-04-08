@@ -56,6 +56,10 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#if EPOLL_AVAILABLE
+#include <sys/epoll.h>
+#endif
+
 #ifndef LINUX
 #include <sys/queue.h>
 #else
@@ -572,7 +576,6 @@ static int epoll_test2() {
     struct addrinfo hints, *results, *rp;
     char buf[10];
 
-
     printf("\n----------------------epoll 2 TESTS -----------------\n\n");
 
     printf("\n----------------------epoll_create1() TEST-----------------\n\n");
@@ -886,6 +889,8 @@ int main() {
     connect_internet_test();
     res_internet_tests();
     res_local_tests();
+    epoll_test();
+    epoll_test2();
     icmp_test();
 
     return 0;
