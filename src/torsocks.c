@@ -1525,7 +1525,8 @@ inline int torsocks_epoll_create_common(int efd)
 {
     struct ts_eventreq_mapping *mapping;
 
-    if ((mapping = (struct ts_eventreq_mapping *)malloc(sizeof(*mapping))) == NULL) {
+    if ((mapping =
+            (struct ts_eventreq_mapping *) malloc(sizeof(*mapping))) == NULL) {
         /* Could not malloc, we're stuffed */
         show_msg(MSGERR, "epoll_create_common: "
                          "Could not allocate memory for new mapping\n");
@@ -1535,18 +1536,19 @@ inline int torsocks_epoll_create_common(int efd)
     if (evsocks == NULL) {
         evsocks = mapping;
         mapping->evfd = efd;
-	mapping->fds = NULL;
-	mapping->next = NULL;
+        mapping->fds = NULL;
+        mapping->next = NULL;
     } else {
-	mapping->fds = NULL;
+        mapping->fds = NULL;
         mapping->evfd = efd;
         mapping->next = evsocks;
-	evsocks = mapping;
+        evsocks = mapping;
     }
     return efd;
 }
 
-int torsocks_epoll_create_guts(EPOLL_CREATE_SIGNATURE, int (*original_epoll_create)(EPOLL_CREATE_SIGNATURE))
+int torsocks_epoll_create_guts(EPOLL_CREATE_SIGNATURE,
+                          int (*original_epoll_create)(EPOLL_CREATE_SIGNATURE))
 {
     int efd;
 
@@ -1566,7 +1568,8 @@ int torsocks_epoll_create_guts(EPOLL_CREATE_SIGNATURE, int (*original_epoll_crea
     return torsocks_epoll_create_common(efd);
 }
 
-int torsocks_epoll_create1_guts(EPOLL_CREATE1_SIGNATURE, int (*original_epoll_create1)(EPOLL_CREATE1_SIGNATURE))
+int torsocks_epoll_create1_guts(EPOLL_CREATE1_SIGNATURE,
+                        int (*original_epoll_create1)(EPOLL_CREATE1_SIGNATURE))
 {
     int efd;
 
@@ -1586,7 +1589,8 @@ int torsocks_epoll_create1_guts(EPOLL_CREATE1_SIGNATURE, int (*original_epoll_cr
     return torsocks_epoll_create_common(efd);
 }
 
-int torsocks_epoll_ctl_guts(EPOLL_CTL_SIGNATURE, int (*original_epoll_ctl)(EPOLL_CTL_SIGNATURE))
+int torsocks_epoll_ctl_guts(EPOLL_CTL_SIGNATURE,
+                            int (*original_epoll_ctl)(EPOLL_CTL_SIGNATURE))
 {
     struct ts_eventreq_mapping * currmap;
     struct ts_eventreq_revmapping * currpair;
@@ -1606,7 +1610,7 @@ int torsocks_epoll_ctl_guts(EPOLL_CTL_SIGNATURE, int (*original_epoll_ctl)(EPOLL
     /* If it's not a socket, we don't need to catch it */
     if (fstat(fd, &statbuf)) {
         show_msg(MSGDEBUG, "epoll_ctl: could not stat fd!\n");
-	return -1;
+        return -1;
     }
     if (! S_ISSOCK(statbuf.st_mode)) {
         show_msg(MSGDEBUG, "epoll_ctl: fd is not a socket, passing through.\n");
@@ -1616,14 +1620,14 @@ int torsocks_epoll_ctl_guts(EPOLL_CTL_SIGNATURE, int (*original_epoll_ctl)(EPOLL
     currmap = find_eventreq_map(epfd);
     if (currmap == NULL) {
         show_msg(MSGDEBUG, "epoll_ctl: Could not find epfd. Was it created "
-	                   "with epoll_create?\n");
+                           "with epoll_create?\n");
         errno = EBADF;
         return -1;
     }
     rv = original_epoll_ctl(epfd, op, fd, event);
     if (rv == -1) {
         show_msg(MSGDEBUG, "epoll_ctl: original_epoll_ctl returned -1\n");
-	show_msg(MSGDEBUG, "epoll_ctl: %d\n", epfd);
+        show_msg(MSGDEBUG, "epoll_ctl: %d\n", epfd);
         return -1;
     }
 
@@ -1635,49 +1639,49 @@ int torsocks_epoll_ctl_guts(EPOLL_CTL_SIGNATURE, int (*original_epoll_ctl)(EPOLL
             show_msg(MSGERR, "epoll_ctl: "
                              "Could not allocate memory for new revmapping\n");
             errno = ENOMEM;
-	    return -1;
+            return -1;
         }
         currpair->evfd = currmap;
         currpair->fd = fd;
         /* Copy the value that the application will use
-	 * and put the fd in it's place, if it's not currently there.
-	 */
-	if (event->data.fd != fd) {
+         * and put the fd in it's place, if it's not currently there.
+         */
+        if (event->data.fd != fd) {
             currpair->strlen = sizeof(int);
-	    memcpy(&(currpair->data), &(event->data.fd), currpair->strlen);
+            memcpy(&(currpair->data), &(event->data.fd), currpair->strlen);
             event->data.fd = fd;
-	} else {
-	    currpair->strlen = 0;
-	}
+        } else {
+            currpair->strlen = 0;
+        }
         currpair->flags = event->events;
         currpair->next = currmap->fds;
         currmap->fds = currpair;
 
-	conn = find_socks_request(fd, 1);
-	if (conn != NULL)
-	    conn->eventfd = currpair;
+        conn = find_socks_request(fd, 1);
+        if (conn != NULL)
+            conn->eventfd = currpair;
     } else if (op & EPOLL_CTL_MOD) {
         currpair = find_fd_in_eventreq(currmap, fd);
         if (currpair != NULL) {
             /* We're still tracking this fd.
-	     * Copy the value that the application will use
-	     * and put the fd in it's place, if it's not currently there.
-	     */
-	    if (event->data.fd != fd) {
+             * Copy the value that the application will use
+             * and put the fd in it's place, if it's not currently there.
+             */
+            if (event->data.fd != fd) {
                 currpair->strlen = sizeof(int);
-	        memcpy(&(currpair->data), &(event->data.fd), currpair->strlen);
+                memcpy(&(currpair->data), &(event->data.fd), currpair->strlen);
                 event->data.fd = fd;
-	    } else {
-	        currpair->strlen = 0;
+            } else {
+                currpair->strlen = 0;
             }
             currpair->flags |= event->events;
-	}
+        }
     } else if (op & EPOLL_CTL_DEL) {
         currpair = remove_fd_from_eventreq(currmap, fd);
         if (currpair != NULL) {
-	    conn = find_socks_request(currpair->fd, 1);
-	    conn->eventfd = NULL;
-	    free(currpair);
+            conn = find_socks_request(currpair->fd, 1);
+            conn->eventfd = NULL;
+            free(currpair);
         }
     }
     return 0;
@@ -1689,7 +1693,7 @@ inline int torsocks_epoll_wait_common(struct epoll_event *events, int nevents,
     struct epoll_event *their_events;
     struct connreq *conn;
     int i, *idxarr, idx, j;
-    
+
     if (events == NULL)
         return -1;
     if (evfd == NULL)
@@ -1703,24 +1707,26 @@ inline int torsocks_epoll_wait_common(struct epoll_event *events, int nevents,
     memset(idxarr, 0, sizeof(int)*nevents);
     if (nevents > 0) {
         show_msg(MSGDEBUG, "epoll_wait: %d events\n", nevents);
-	/* Find our FDs */
+        /* Find our FDs */
         for (i = 0; i < nevents; i++) {
             for (fds = evfd->fds; fds != NULL; fds = fds->next) {
                 if (events[i].data.fd == fds->fd) {
                     if (fds->flags & events[i].events) {
-                        show_msg(MSGDEBUG, "epoll_wait: event on %d\n", fds->fd);
+                        show_msg(MSGDEBUG, "epoll_wait: event on %d\n",
+                                           fds->fd);
                         show_msg(MSGDEBUG, "epoll_wait: Is %s%s%s event(s)\n",
-                                 ((events[i].events & EPOLLIN) ? "read" : ""),
-                                  (events[i].events & EPOLLOUT ? " write" : ""),
-                                  (events[i].events & EPOLLERR ? " error" : ""));
+                               ((events[i].events & EPOLLIN) ? "read" : ""),
+                                (events[i].events & EPOLLOUT ? " write" : ""),
+                                (events[i].events & EPOLLERR ? " error" : ""));
                         idxarr[i] = fds->fd;
                         conn = find_socks_request(fds->fd, 1);
 
                         /* If the connection is already complete we already
                          * stopped tracking this fd */
                         if (conn == NULL) {
-                            show_msg(MSGDEBUG, "epoll_wait: We're not watching it. "
-			                       "SOCKS conn must be complete.\n");
+                            show_msg(MSGDEBUG, "epoll_wait: We're not "
+                                         "watching it. SOCKS conn must be "
+                                         "complete.\n");
                             idxarr[i] = -fds->fd;
                             idx++;
                             continue;
@@ -1732,32 +1738,35 @@ inline int torsocks_epoll_wait_common(struct epoll_event *events, int nevents,
                          */
                         if ((conn->state != FAILED) &&
                             (conn->state != DONE)) {
-                            show_msg(MSGDEBUG, "epoll_wait: We're not done with it yet\n");
+                            show_msg(MSGDEBUG, "epoll_wait: We're not done "
+                                               "with it yet\n");
                             continue;
                         } else if (conn->state == DONE) {
                             /* If we've established the connection, then
                              * we need to stop tracking this fd and let
                              * the client know it's ready
                              */
-                            show_msg(MSGDEBUG, "epoll_wait: Ok, done with %d, removing from our list\n", fds->fd);
+                            show_msg(MSGDEBUG, "epoll_wait: Ok, done with %d, "
+                                          "removing from our list\n", fds->fd);
                             free(remove_fd_from_eventreq(evfd, fds->fd));
                             idxarr[i] = -fds->fd;
                             idx++;
                         }
                     }
                 } else {
-                    show_msg(MSGDEBUG, "epoll_wait: Not one of ours. fd %d\n", events[i].data.fd);
+                    show_msg(MSGDEBUG, "epoll_wait: Not one of ours. fd %d\n",
+                                       events[i].data.fd);
                 }
             }
             if (evfd->fds == NULL) {
-                show_msg(MSGDEBUG, "epoll_wait: Not one of ours. fd %d\n", events[i].data.fd);
+                show_msg(MSGDEBUG, "epoll_wait: Not one of ours. fd %d\n",
+                                   events[i].data.fd);
             }
         }
     } else {
         free(idxarr);
         return 0;
     }
-
 
     /* Each offset of the array that isn't positive will be passed on.
      * We need to reset all values of event->data if we modified it because
@@ -1771,15 +1780,17 @@ inline int torsocks_epoll_wait_common(struct epoll_event *events, int nevents,
         for (i = 0, j = 0; i < nevents; i++) {
             /* Not one of our sockets, so just pass it through */
             if (idxarr[i] == 0)
-                memcpy((void *)&their_events[j++], (void *)&events[i], sizeof(*their_events));
-	    /* We want to return it if we're done with it */
-	    else if ((idxarr[i] < 0) && (-idxarr[i]) == events[i].data.fd) {
-	        fds = find_fd_in_eventreq(evfd, events[i].data.fd);
-	        if (fds == NULL)
-	            continue;
-	        if (fds->strlen > 0)
-	            memcpy(&(events[i].data.fd), &(fds->data), fds->strlen);
-                memcpy((void *)&their_events[j++], (void *)&events[i], sizeof(*their_events));
+                memcpy((void *)&their_events[j++], (void *)&events[i],
+                       sizeof(*their_events));
+            /* We want to return it if we're done with it */
+            else if ((idxarr[i] < 0) && (-idxarr[i]) == events[i].data.fd) {
+                fds = find_fd_in_eventreq(evfd, events[i].data.fd);
+                if (fds == NULL)
+                    continue;
+                if (fds->strlen > 0)
+                    memcpy(&(events[i].data.fd), &(fds->data), fds->strlen);
+                memcpy((void *)&their_events[j++], (void *)&events[i],
+                       sizeof(*their_events));
             }
         }
 
@@ -1793,7 +1804,8 @@ inline int torsocks_epoll_wait_common(struct epoll_event *events, int nevents,
     return j;
 }
 
-int torsocks_epoll_wait_guts(EPOLL_WAIT_SIGNATURE, int(*original_epoll_wait)(EPOLL_WAIT_SIGNATURE))
+int torsocks_epoll_wait_guts(EPOLL_WAIT_SIGNATURE,
+                             int(*original_epoll_wait)(EPOLL_WAIT_SIGNATURE))
 {
     struct ts_eventreq_mapping * evfd;
     int rv;
@@ -1819,7 +1831,8 @@ int torsocks_epoll_wait_guts(EPOLL_WAIT_SIGNATURE, int(*original_epoll_wait)(EPO
     return torsocks_epoll_wait_common(events, rv, evfd);
 }
 
-int torsocks_epoll_pwait_guts(EPOLL_PWAIT_SIGNATURE, int(*original_epoll_pwait)(EPOLL_PWAIT_SIGNATURE))
+int torsocks_epoll_pwait_guts(EPOLL_PWAIT_SIGNATURE,
+                             int(*original_epoll_pwait)(EPOLL_PWAIT_SIGNATURE))
 {
     struct ts_eventreq_mapping * evfd;
     int rv;
@@ -1835,7 +1848,7 @@ int torsocks_epoll_pwait_guts(EPOLL_PWAIT_SIGNATURE, int(*original_epoll_pwait)(
     evfd = find_eventreq_map(epfd);
     if (evfd == NULL) {
         errno = EBADF;
-	return -1;
+        return -1;
     }
     
     rv = original_epoll_pwait(epfd, events, maxevents, timeout, sigmask);

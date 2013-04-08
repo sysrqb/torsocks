@@ -154,7 +154,7 @@ struct ts_eventreq_mapping *find_eventreq_map(int evfd)
 
     for (currpair = evsocks; currpair != NULL; currpair = currpair->next) {
         if (currpair->evfd == evfd)
-	    return currpair;
+            return currpair;
     }
     return NULL;
 }
@@ -166,8 +166,21 @@ find_fd_in_eventreq(struct ts_eventreq_mapping * evfd, int fd)
 
     for (currpair = evfd->fds; currpair != NULL; currpair = currpair->next) {
         if (currpair->fd == fd)
-	    return currpair;
+            return currpair;
     }
+    return NULL;
+}
+
+struct ts_eventreq_mapping *
+find_map_with_fd_eventreq(int fd) {
+    struct ts_eventreq_mapping * currmap;
+    struct ts_eventreq_revmapping * currpair;
+
+    for (currmap = evsocks; currmap != NULL; currmap = currmap->next)
+        for (currpair = currmap->fds; currpair != NULL;
+                                          currpair = currpair->next)
+	    if (currpair->fd == fd)
+                return currmap;
     return NULL;
 }
 
@@ -179,22 +192,69 @@ remove_fd_from_eventreq(struct ts_eventreq_mapping *evfd, int fd) {
         return NULL;
     if (evfd->fds->fd == fd) {
         targetpair = evfd->fds;
-	evfd->fds = evfd->fds->next;
-	return targetpair;
+        evfd->fds = evfd->fds->next;
+        return targetpair;
     } else {
         currpair = evfd->fds;
         while (currpair->next != NULL) {
-	    nextpair = currpair->next;
+            nextpair = currpair->next;
             if (nextpair->fd == fd) {
-	        targetpair = nextpair;
-		currpair->next = nextpair->next;
-		return nextpair;
-            } else
-		currpair = nextpair;
-	        nextpair = nextpair->next;
+                targetpair = nextpair;
+                currpair->next = nextpair->next;
+                return nextpair;
+            } else {
+                currpair = nextpair;
+                nextpair = nextpair->next;
+            }
         }
-	return NULL;
+        return NULL;
     }
+}
+
+void remove_fds_from_eventreq(struct ts_eventreq_mapping *evfd) {
+    struct ts_eventreq_revmapping * revevfd;
+
+    if (evfd != NULL) {
+        revevfd = evfd->fds;
+        while (revevfd != NULL) {
+            revevfd = remove_fd_from_eventreq(evfd, revevfd->fd);
+            if (revevfd != NULL)
+                 free(revevfd);
+            revevfd = evfd->fds;
+        }
+    }
+}
+
+struct ts_eventreq_mapping *
+remove_evfd_from_eventreq(struct ts_eventreq_mapping *evfd) {
+    struct ts_eventreq_mapping * currmap, *tempmap;
+
+    if (evsocks->evfd == evfd->evfd) {
+        remove_fds_from_eventreq(evfd);
+        currmap = evsocks;
+        evsocks = evsocks->next;
+        return currmap;
+    }
+
+    for (currmap = evsocks; currmap != NULL; currmap = currmap->next) {
+        if (currmap->next->evfd == evfd->evfd) {
+            remove_fds_from_eventreq(evfd);
+            tempmap = currmap->next;
+            currmap->next = tempmap->next;
+            return tempmap;
+	}
+    }
+    return NULL;
+}
+
+int is_eventreq_fd(int evfd) {
+    struct ts_eventreq_mapping * currmap;
+
+    for (currmap = evsocks; currmap != NULL; currmap = currmap->next) {
+        if (currmap->evfd == evfd)
+	    return 1;
+    }
+    return 0;
 }
 
 int handle_request(struct connreq *conn)
