@@ -74,6 +74,43 @@ set_id () {
     exit 1
 }
 
+usage () {
+    # This explanation is less than intuitive, it will need to be simplified
+    echo "Syntax: [.] $1 <session_options | program_options <program>]>"
+    echo "    session_options: [on] | [off] | [show | sh] | [--shell]" 
+    echo "    program_options: [-hvupfdtiPN] "
+    echo
+    echo "    Options that affect all programs run from this session"
+    echo "          on       Enable Torsocks for all programs run here"
+    echo "                       Note: It is necessary to prepend a period (.)"
+    echo "                       or source in front of the torsocks command"
+    echo "          off      Disable Torsocks for all programs run here"
+    echo "                       Note: It is necessary to prepend a period (.)"
+    echo "                       or source in front of the torsocks command"
+    echo "          sh, show"
+    echo "                   Show the current list of preloaded libraries"
+    echo "        --shell    Enter into a shell that will enable Torsocks for"
+    echo "                       all programs run in the shell"
+    echo
+    echo "    Options that affect only the program run by Torsocks"
+    echo "        -d debug_file       Path to log file"
+    echo "        -f file             Path to configuration file" 
+    echo "        -h                  Show this message"
+    echo "        -i IP               SOCKS server IP address"
+    echo "        -N                  Do not read configuration file,"
+    echo "                              only use command line values"
+    echo "        -p pass             SOCKS password"
+    echo "        -P port             SOCKS server port number"
+    echo "        -t server_type      SOCKS server type (4, 4A, 5)"
+    echo "        -u user             SOCKS username"
+    echo "        -v num              Verbosity level [1,3]" 
+    echo "        program             The program you want to run"
+    echo
+    echo "For additional details and information, please view the man pages"
+    echo "torsocks(1) and torsocks.conf(5). Also read the information at"
+    echo "the top of the torsocks file that was just run."
+}
+
 if [ $# = 0 ] ; then
    echo "$0: insufficient arguments"
    exit
@@ -125,9 +162,6 @@ case "$1" in
   show|sh)
     echo "@LDPRELOAD@=\"$@LDPRELOAD@\""
   ;;
-  -h|-?)
-      echo "$0: Please see torsocks(1) or read comment at top of $0"
-   ;;
   --shell)
     if [ -z "$@LDPRELOAD@" ]
     then
@@ -141,6 +175,84 @@ case "$1" in
     ${SHELL:-/bin/sh}
   ;;
   *)
+    while getopts hv:u:p:f:d: opt 
+    do
+      case "${opt}" in
+        v)
+            if [ "${OPTARG}" -gt "-2" ]
+            then
+                echo "Setting to verbosity level ${OPTARG}"
+                export TORSOCKS_DEBUG="${OPTARG}"
+            else
+                echo "Please provide how verbose you want the output: " \
+		     "between -1 and 3"
+                exit
+            fi
+        ;;
+        f)
+            export TORSOCKS_CONF_FILE="${OPTARG}" 
+        ;;
+        d)
+            export TORSOCKS_DEBUG_FILE="${OPTARG}"
+        ;;
+        u)
+            export TORSOCKS_USERNAME="${OPTARG}"
+        ;;
+        p)
+            export TORSOCKS_PASSWORD="${OPTARG}"
+        ;;
+        t)
+            export TORSOCKS_SERVERTYPE="${OPTARG}"
+        ;;
+        i)
+            export TORSOCKS_SERVER="${OPTARG}"
+        ;;
+        P)
+            export TORSOCKS_PORT="${OPTARG}"
+        ;;
+	N)
+            export TORSOCKS_NOCONF="1"
+        ;;
+        *)
+            usage $0
+            exit
+        ;;
+      esac
+    done
+
+    # Ok, we're done with the options, now let's dump each one
+    # until we reach the part we actually want to exec
+    while [ ${OPTIND} -gt "1" ]
+    do
+        shift
+        OPTIND=$(( ${OPTIND} - 1 ))
+    done
+
+    # We want to isolate each stream unless told to do otherwise
+    if [ -z "${TORSOCKS_USERNAME}" ] && [ -z "${TORSOCKS_PASSWORD}" ]
+    then
+        if [ -e "/proc/sys/kernel/random/uuid" ]
+        then
+            export TORSOCKS_USERNAME=$(cat /proc/sys/kernel/random/uuid)
+            export TORSOCKS_PASSWORD=$(cat /proc/sys/kernel/random/uuid)
+        fi
+    fi
+
+    # We can't use information we're not given
+    if [ -n "${TORSOCKS_NOCONF}" ]
+    then
+        if [ -z "${TORSOCKS_SERVERTYPE}" ] || \
+           [ -z "${TORSOCKS_SERVER}" ] || \
+           [ -z "${TORSOCKS_PORT}" ]
+        then
+            echo "ERROR: When you specify -N please provide following" \
+	         "three values:"
+            echo "    SOCKS server IP address (-i), SOCKS port (-P)" \
+	         "and SOCKS server type (-t)"
+            exit
+        fi
+    fi
+ 
     if [ -z "$@LDPRELOAD@" ]
     then
       export @LDPRELOAD@="${SHLIB}"

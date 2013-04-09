@@ -36,10 +36,13 @@
 
 #include "common.h"
 #include "parser.h"
+#include "socks.h"
 
 /* Global configuration variables */
 #define MAXLINE         BUFSIZ             /* Max length of conf line  */
 static struct serverent *currentcontext = NULL;
+
+int torsocks_noconf;
 
 static int handle_line(struct parsedfile *, char *, int);
 static int check_server(struct serverent *);
@@ -78,7 +81,7 @@ int read_config (char *filename, struct parsedfile *config) {
 
 
     /* If a filename wasn't provided, use the default */
-    if (filename == NULL) {
+    if ((filename == NULL) && (!torsocks_noconf)) {
         strncpy(line, CONF_FILE, sizeof(line) - 1);
         /* Insure null termination */
         line[sizeof(line) - 1] = (char) 0;
@@ -87,14 +90,33 @@ int read_config (char *filename, struct parsedfile *config) {
                 "environment variable, attempting to use defaults in %s.\n", filename);
     }
 
-    /* If there is no configuration file use reasonable defaults for Tor */
-    if ((conf = fopen(filename, "r")) == NULL) {
-        show_msg(MSGERR, "Could not open socks configuration file "
-                "(%s) errno (%d), assuming sensible defaults for Tor.\n", filename, errno);
+    /* If torsocks_noconf is set, only use the values given to us. Otherwise
+     * if there is no configuration file use reasonable defaults for Tor 
+     * unless we were given some options on the command line, then use those
+     * and fill in any remaining details with the values in the config file.
+     */
+    if (torsocks_noconf) {
+        memset(&(config->defaultserver), 0x0, sizeof(config->defaultserver));
+
+        show_msg(MSGWARN, "We were told not to use the config file. "
+                          "Following orders.\n");
+        config->defaultserver.address = strndup(torsocks_server, 15);
+        config->defaultserver.port = torsocks_port;
+        config->defaultserver.type = (int) strtol(torsocks_servertype, NULL, 10);
+        handle_local(config, 0, "127.0.0.0/255.0.0.0");
+        handle_local(config, 0, "10.0.0.0/255.0.0.0");
+        handle_local(config, 0, "192.168.0.0/255.255.0.0");
+        handle_local(config, 0, "172.16.0.0/255.240.0.0");
+        handle_local(config, 0, "169.254.0.0/255.255.0.0");
+    } else if ((conf = fopen(filename, "r")) == NULL) {
         memset(&(config->defaultserver), 0x0, sizeof(config->defaultserver));
 
         /* Enable optimistic data by default */
         config->defaultserver.use_optdata = 1;
+
+        show_msg(MSGERR, "Could not open socks configuration file "
+            "(%s) errno (%d), assuming sensible defaults for Tor.\n",
+             filename, errno);
 
         check_server(&(config->defaultserver));
         handle_local(config, 0, "127.0.0.0/255.0.0.0");
@@ -108,6 +130,14 @@ int read_config (char *filename, struct parsedfile *config) {
 
         /* Enable optimistic data by default */
         config->defaultserver.use_optdata = 1;
+
+        if (torsocks_server) {
+            config->defaultserver.address = strndup(torsocks_server, 15);
+        } else if (torsocks_port) {
+            config->defaultserver.port = torsocks_port;
+        } else if (torsocks_servertype) {
+            config->defaultserver.type = (int) strtol(torsocks_servertype, NULL, 10);
+        }
 
         while (NULL != fgets(line, MAXLINE, conf)) {
             /* This line _SHOULD_ end in \n so we  */
@@ -385,7 +415,7 @@ static int handle_server(struct parsedfile *config, int lineno, char *value) {
     /* its resolved immediately before use in torsocks.c */
     if (currentcontext->address == NULL)
         currentcontext->address = strdup(ip);
-    else {
+    else if (!torsocks_server) {
         if (currentcontext == &(config->defaultserver))
             show_msg(MSGERR, "Only one default SOCKS server "
                    "may be specified at line %d in "
@@ -403,15 +433,18 @@ static int handle_server(struct parsedfile *config, int lineno, char *value) {
 static int handle_port(struct parsedfile *config, int lineno, char *value) {
 
     if (currentcontext->port != 0) {
-        if (currentcontext == &(config->defaultserver))
-            show_msg(MSGERR, "Server port may only be specified "
-                   "once for default server, at line %d "
-                   "in configuration file\n", lineno);
-        else
+        if (currentcontext == &(config->defaultserver)) {
+            if (!torsocks_port) {
+                show_msg(MSGERR, "Server port may only be specified "
+                       "once for default server, at line %d "
+                       "in configuration file\n", lineno);
+            }
+        } else {
             show_msg(MSGERR, "Server port may only be specified "
                    "once per path on line %d in configuration "
                    "file. (Path begins on line %d)\n",
                    lineno, currentcontext->lineno);
+        }
     } else {
         errno = 0;
         currentcontext->port = (unsigned short int)
@@ -468,15 +501,18 @@ static int handle_defpass(struct parsedfile *config, int lineno, char *value) {
 static int handle_type(struct parsedfile *config, int lineno, char *value) {
 
     if (currentcontext->type != 0) {
-        if (currentcontext == &(config->defaultserver))
+        if (currentcontext == &(config->defaultserver)) {
+            if (!torsocks_servertype) {
+                show_msg(MSGERR, "Server type may only be specified "
+                                 "once for default server, at line %d "
+                                 "in configuration file\n", lineno);
+            }
+        } else {
             show_msg(MSGERR, "Server type may only be specified "
-                   "once for default server, at line %d "
-                   "in configuration file\n", lineno);
-        else
-            show_msg(MSGERR, "Server type may only be specified "
-                   "once per path on line %d in configuration "
-                   "file. (Path begins on line %d)\n",
-                   lineno, currentcontext->lineno);
+                             "once per path on line %d in configuration "
+                             "file. (Path begins on line %d)\n",
+                             lineno, currentcontext->lineno);
+        }
     } else {
         errno = 0;
         currentcontext->type = (int) strtol(value, (char **)NULL, 10);

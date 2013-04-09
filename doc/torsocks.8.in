@@ -88,12 +88,35 @@ interferes with normal operation this option is generally better than
 disabling messages (with TORSOCKS_DEBUG = \-1)
 
 .TP
+.I TORSOCKS_NOCONF
+This environment variable tells Torsocks to not read the configuration file
+and only use the values provided in TORSOCKS_SERVER, TORSOCKS_SERVERTYPE, and
+TORSOCKS_PORT. NOTE: These three values are manditory.
+
+.TP
+.I TORSOCKS_PORT
+This environment variable can be used to specify to the port on which the 
+default SOCKS server is listening.
+
+.TP
+.I TORSOCKS_SERVER
+This environment variable can be used to specify the IP address of the 
+default SOCKS server.
+
+.TP
+.I TORSOCKS_SERVERTYPE
+This environment variable can be used to specify the default SOCKS version, 
+one of 4, 4a, or 5. 
+
+
+.TP
 .I TORSOCKS_USERNAME
 This environment variable can be used to specify the username to be used when
 version 5 SOCKS servers request username/password authentication. This 
 overrides the default username that can be specified in the configuration
 file using 'default_user', see torsocks.conf(8) for more information. This
-variable is ignored for version 4 SOCKS servers.
+variable is ignored for version 4 SOCKS servers. If not set, a random username
+will be chosen.
 
 .TP
 .I TORSOCKS_PASSWORD
@@ -101,7 +124,8 @@ This environment variable can be used to specify the password to be used when
 version 5 SOCKS servers request username/password authentication. This 
 overrides the default password that can be specified in the configuration 
 file using 'default_pass', see torsocks.conf(8) for more information. This
-variable is ignored for version 4 SOCKS servers.
+variable is ignored for version 4 SOCKS servers. If not set, a random password
+will be chosen.
  
 .SS DNS ISSUES
 .BR torsocks

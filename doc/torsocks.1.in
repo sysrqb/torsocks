@@ -6,14 +6,12 @@
 transparently allow an application to use a SOCKS proxy. Basically a renamed, patched tsocks.
 .SH SYNOPSIS
 .B torsocks
-.RB [application\ [application's\ arguments]]
+.RB [[-hvupfdtiPN]\ application\ [application's\ arguments]]
 .br
 or
 .B torsocks
-.RB [on|off|--shell]
+.RB [on|off|--shell|sh|show]
 .br
-or
-.B torsocks
 .SH DESCRIPTION
 .B torsocks
 is a wrapper between the torsocks library and the application what you
@@ -24,13 +22,25 @@ By default, torsocks will assume that it should connect to the SOCKS proxy
 running at 127.0.0.1 on port 9050. This is the default address and port for
 Tor's socks server on most installations.
 
-In order to use a configuration file, you must set the environment variable
-TORSOCKS_CONF_FILE with the location of the file.
+If -u is not set, a random username will be chosen.
 
-If TORSOCKS_CONF_FILE is not set, torsocks will attempt to read the configuration
+If -p is not set, a random password will be chosen.
+
+In order to use a configuration file, you must specify -f on the command line
+or set the environment variable TORSOCKS_CONF_FILE with the location of the
+file.
+
+If neither is specified then torsocks will attempt to read the configuration
 file at @CONFDIR@/torsocks.conf. If that file cannot be read, torsocks will
 use sensible defaults for most Tor installations, i.e. it will assume that
-you want to use a SOCKS proxy running at 127.0.0.1 (localhost) on port 9050.
+you want to use a SOCKS proxy running at 127.0.0.1 (localhost) on port 9050. If
+-N is specified on the command line then no configuration file will be read and
+only the the command line values will be used. As such, when -N is specifed
+-i, -P, and -t must all be specified. If -N is not specified, the command line
+values will override the default server values in the configuration file. Any
+specific paths that were configured in the configuration file will still be 
+used before the default server (and therefore the values specified on the
+command line).
 
 For further information on configuration, see
 .B torsocks.conf(5).
@@ -56,6 +66,26 @@ Example:
 show the current value of the LD_PRELOAD variable
 .IP \fB[--shell]
 create a new shell with LD_PRELOAD including torsocks(8).
+.IP \fB-d\ debug_file
+Path to where the debug log file shall be saved
+.IP \fB-f\ file
+Path to the configuration file
+.IP \fB-h
+Display help message
+.IP \fB-N
+Torsocks will not read the configuration file and will only use value from the command line
+.br
+Note: This option requres -i, -P, and -t
+.IP \fB-p\ pass
+Password used during SOCKS authentication
+.IP \fB-P\ port
+SOCKS server port number
+.IP \fB-t\ server_type
+SOCKS server type (4, 4a, 5)
+.IP \fB-u\ user
+Username used during SOCKS authentication
+.IP \fB-v\ num
+Verbosity level [1,3]
 .PP
 .SH AUTHOR
 This script was created by Tamas SZERB <toma@rulez.org> for the debian
