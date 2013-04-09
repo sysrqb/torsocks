@@ -861,6 +861,21 @@ int torsocks_close_guts(CLOSE_SIGNATURE, int (*original_close)(CLOSE_SIGNATURE))
       * leave here */
     if (!requests) {
         show_msg(MSGDEBUG, "No requests waiting, calling real close\n");
+        evfd = find_map_with_fd_eventreq(fd);
+        if (evfd != NULL) {
+            revevfd = remove_fd_from_eventreq(evfd, fd);
+            if (revevfd != NULL) {
+                free(revevfd);
+            }
+        }
+
+        evfd = find_eventreq_map(fd);
+        if (evfd != NULL) {
+            show_msg(MSGDEBUG, "closing evfd %d\n", fd);
+            remove_evfd_from_eventreq(evfd);
+            free(evfd);
+        }
+
         return(original_close(fd));
     }
 
@@ -880,15 +895,21 @@ int torsocks_close_guts(CLOSE_SIGNATURE, int (*original_close)(CLOSE_SIGNATURE))
         show_msg(MSGDEBUG, "Call to close() received on file descriptor "
                             "%d which is a connection request of status %d\n",
                  conn->sockid, conn->state);
-	evfd = find_eventreq_map(fd);
-	if (evfd != NULL) {
-            revevfd = remove_fd_from_eventreq(evfd, fd);
-	    if (revevfd != NULL) {
-	        original_close(revevfd->our_fd);
-	        free(revevfd);
-            }
-        }
         kill_socks_request(conn);
+    }
+    evfd = find_map_with_fd_eventreq(fd);
+    if (evfd != NULL) {
+        revevfd = remove_fd_from_eventreq(evfd, fd);
+        if (revevfd != NULL) {
+            free(revevfd);
+        }
+    }
+
+    evfd = find_eventreq_map(fd);
+    if (evfd != NULL) {
+        show_msg(MSGDEBUG, "closing evfd %d\n", fd);
+        remove_evfd_from_eventreq(evfd);
+        free(evfd);
     }
 
     return(rc);

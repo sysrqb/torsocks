@@ -247,16 +247,6 @@ remove_evfd_from_eventreq(struct ts_eventreq_mapping *evfd) {
     return NULL;
 }
 
-int is_eventreq_fd(int evfd) {
-    struct ts_eventreq_mapping * currmap;
-
-    for (currmap = evsocks; currmap != NULL; currmap = currmap->next) {
-        if (currmap->evfd == evfd)
-	    return 1;
-    }
-    return 0;
-}
-
 int handle_request(struct connreq *conn)
 {
     int rc = 0;

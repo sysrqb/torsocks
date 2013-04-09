@@ -143,7 +143,7 @@ struct ts_eventreq_revmapping *
 find_fd_in_eventreq(struct ts_eventreq_mapping * evfd, int fd);
 struct ts_eventreq_revmapping *
 remove_fd_from_eventreq(struct ts_eventreq_mapping *evfd, int fd);
-int is_eventreq_fd(int evfd);
+struct ts_eventreq_mapping * find_map_with_fd_eventreq(int fd);
 void remove_fds_from_eventreq(struct ts_eventreq_mapping *evfd);
 struct ts_eventreq_mapping *
 remove_evfd_from_eventreq(struct ts_eventreq_mapping *evfd);
