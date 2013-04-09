@@ -70,6 +70,47 @@
 #define PACKETSZ 512
 #endif
 
+int failure = 0;
+int success = 0;
+
+inline static
+void expect_int(int rv, int exp, const char * str)
+{
+    if (rv == exp) {
+        printf("\nRETURNED: %d\n\nTest %s: SUCCESS\n", rv, str);
+	success++;
+    } else {
+        printf("\nRETURNED: %d\n\nTest %s: FAILED\n", rv, str);
+	failure++;
+    }
+}
+
+inline static
+void expect_charstar(const char * str, char * rv, char * exp, int n)
+{
+    if (!strncmp(rv, exp, n)) {
+        printf("\nRETURNED: %s\n\nTest %s: SUCCESS\n", rv, str);
+	success++;
+    }
+    else {
+        printf("\nRETURNED: %s\n\nTest %s: FAILED\n", rv, str);
+	failure++;
+    }
+}
+
+inline static
+void notexpect_charstar(char * rv, char * exp, int n, const char * str)
+{
+    if (strncmp(rv, exp, n)) {
+        printf("\nRETURNED: %s\n\nTest %s: SUCCESS\n", rv, str);
+	success++;
+    }
+    else {
+        printf("\nRETURNED: %s\n\nTest %s: FAILED\n", rv, str);
+	failure++;
+    }
+}
+
 static unsigned short csum (unsigned short *buf, int nwords)
 {
     unsigned long sum;
@@ -98,7 +139,9 @@ static int icmp_test()
     if((sockfd=socket(AF_INET,SOCK_RAW,IPPROTO_ICMP))<0)
     {
         perror("socket");
-        exit(1);
+        if (errno == EPERM)
+          printf("We aren't allowed to open raw sockets. This is expected for non-root.\n");
+        return -1;
     }
 
     memset(datagram,0,400);
@@ -154,6 +197,7 @@ static char *txtquery(const char *domain, unsigned int *ttl)
 
 
     *ttl = 0;
+    printf("\n----------------txtquery() TEST----------------------------\n\n");
     if(res_init() < 0) {
         printf("^res_init failed\n");
         return NULL;
@@ -202,7 +246,7 @@ static char *txtquery(const char *domain, unsigned int *ttl)
     do { /* recurse through CNAME rr's */
         pt += size;
         if((len = dn_expand(answer, answend, pt, host, sizeof(host))) < 0) {
-            printf("^second dn_expand failed\n");
+            printf("^dn_expand failed. No TXT record found.\n");
             return NULL;
         }
         printf("^Host: %s\n", host);
@@ -219,7 +263,7 @@ static char *txtquery(const char *domain, unsigned int *ttl)
             printf("^DNS rr overflow\n");
             return NULL;
         }
-    } while(type == T_CNAME);
+    } while(type != T_TXT);
 
     if(type != T_TXT) {
         printf("^Not a TXT record\n");
@@ -241,7 +285,8 @@ static char *txtquery(const char *domain, unsigned int *ttl)
     return txt;
 }
 
-static int res_tests(char *ip, char *test) {
+/** XXX Refactor */
+static int res_tests(char *ip, char *test, int exp[]) {
     unsigned char dnsreply[1024];
     unsigned char host[128];
     int ret = 0, i;
@@ -270,40 +315,45 @@ static int res_tests(char *ip, char *test) {
     /* Modifying _res directly doesn't work, so we have to use res_n* where available.
        See: http://sourceware.org/ml/libc-help/2009-11/msg00013.html */
     printf("\n---------------------- %s res_query() TEST----------------------\n\n", test);
-    snprintf((char *)host, 127, "www.google.com");
-#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
+    snprintf((char *)host, 127, "google.com");
+/*#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
     ret = res_nquery(&_res, (char *) host, C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
-#else
-    ret = res_query((char *) host, C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
-#endif
+#else*/
+    ret = res_query((const char *) host, C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
+/*#endif*/
     printf("return code: %i\n", ret);
+    expect_int(ret, exp[0], "res_query");
 
     printf("\n---------------------- %s res_search() TEST----------------------\n\n", test);
     memset( dnsreply, '\0', sizeof( dnsreply ));
-#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
+/*#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
     ret = res_nsearch(&_res, (char *) host, C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
-#else
+#else*/
     ret = res_search((char *) host, C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
-#endif
+/*#endif*/
     printf("return code: %i\n", ret);
+    expect_int(ret, exp[1], "res_search");
 
     printf("\n--------------- %s res_querydomain() TEST----------------------\n\n", test);
     memset( dnsreply, '\0', sizeof( dnsreply ));
-#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
+/*#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
     ret = res_nquerydomain(&_res,  "www.google.com", "google.com", C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
-#else
-    ret = res_querydomain("www.google.com", "google.com", C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
-#endif
+#else*/
+    ret = res_querydomain("www", "google.com", C_IN, T_TXT, dnsreply, sizeof( dnsreply ));
+/*#endif*/
     printf("return code: %i\n", ret);
+    expect_int(ret, exp[2], "res_querydomain");
 
     printf("\n---------------------- %s res_send() TEST----------------------\n\n", test);
     memset( dnsreply, '\0', sizeof( dnsreply ));
-#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
+/*#if !defined(OPENBSD) && !defined(__APPLE__) && !defined(__darwin__)
     ret = res_nsend(&_res,  host, 32, dnsreply, sizeof( dnsreply ));
-#else
+#else*/
     ret = res_send(host, 32, dnsreply, sizeof( dnsreply ));
-#endif
-printf("return code: %i\n", ret);
+/*#endif*/
+    printf("return code: %i\n", ret);
+    expect_int(ret, exp[3], "res_send");
+
 
     return ret;
 }
@@ -311,13 +361,15 @@ printf("return code: %i\n", ret);
 static int res_internet_tests() {
     char *ip = "8.8.8.8";
     char *test = "internet";
-    return res_tests(ip, test);
+    int exp[] = {116, 116, -1,-1};
+    return res_tests(ip, test, exp);
 }
 
 static int res_local_tests() {
     char *ip = "192.168.1.1";
     char *test = "local";
-    return res_tests(ip, test);
+    int exp[] = {-1, -1, -1, -1};
+    return res_tests(ip, test, exp);
 }
 
 static int udp_test() {
@@ -326,7 +378,7 @@ static int udp_test() {
     int sock,ret,wb,flags=0;
     char *ip = "6.6.6.6";
 
-    printf("\n----------------------UDP TEST----------------------\n\n");
+    printf("\n----------------------UDP TESTS----------------------\n");
 
     addr.sin_family=AF_INET;
     addr.sin_port=53;
@@ -351,16 +403,19 @@ static int udp_test() {
     wb=0;
     ret=sendmsg(sock, &msg, flags);
     printf("sendmsg() returned ret=%d wb=%d\n",ret,wb);
+    expect_int(ret, -1, "udp sendmsg");
 
     printf("\n----------------------udp sendto() TEST--------------------\n\n");
     wb=0;
     ret=sendto(sock,testtext,strlen(testtext)+1,wb, (struct sockaddr*)&addr, sizeof(addr));
     ret=sendto(sock,"CiaoCiao",strlen("CiaoCiao")+1,wb, (struct sockaddr*)&addr, sizeof(addr));
     printf("sendto() returned ret=%d wb=%d\n",ret,wb);
+    expect_int(ret, -1, "udp sendto");
 
     printf("\n----------------------udp connect() TEST-------------------\n\n");
     ret=connect(sock,(struct sockaddr*)&addr,sizeof(addr));
     printf("Connect returned ret=%d\n",ret);
+    expect_int(ret, -1, "udp connect");
 
     printf("\n----------------------udp send() TEST----------------------\n\n");
     wb=0;
@@ -368,6 +423,7 @@ static int udp_test() {
     ret=send(sock,"CiaoCiao",strlen("CiaoCiao")+1,wb);
     printf("Note: no interception by torsocks expected as send() requires a socket in a connected state.\n");
     printf("send() returned ret=%d wb=%d\n",ret,wb);
+    expect_int(ret, -1, "udp send");
 
     return 0;
 }
@@ -781,7 +837,8 @@ static int gethostbyname_test() {
         printf("%s -> %s\n",foo->h_name,inet_ntoa(*(struct in_addr*)foo->h_addr_list[i]));
 /*      for (i=0; foo->h_aliases[i]; ++i)
         printf("  also known as %s\n",foo->h_aliases[i]);*/
-    }
+    } else
+      return -1;
     return 0;
 }
 
@@ -791,7 +848,7 @@ static int gethostbyaddr_test() {
 
     printf("\n----------------------gethostbyaddr() TEST-----------------\n\n");
 
-    inet_aton("38.229.70.16", &bar);
+    inet_aton("38.229.72.14", &bar);
     foo=gethostbyaddr(&bar,4,AF_INET);
     if (foo) {
       int i;
@@ -799,6 +856,9 @@ static int gethostbyaddr_test() {
         printf("%s -> %s\n",foo->h_name,inet_ntoa(*(struct in_addr*)foo->h_addr_list[i]));
       for (i=0; foo->h_aliases[i]; ++i)
         printf("  also known as %s\n",foo->h_aliases[i]);
+    } else {
+      printf("gethostbyaddr failed: %s\n", hstrerror(h_errno));
+      return -1;
     }
     return 0;
 }
@@ -812,19 +872,19 @@ static int getaddrinfo_test() {
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_INET;    /* Allow IPv4 or IPv6 */
-    hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
+    hints.ai_socktype = SOCK_STREAM; /* Stream socket */
     hints.ai_flags = AI_PASSIVE;    /* For wildcard IP address */
     hints.ai_protocol = 0;          /* Any protocol */
     hints.ai_canonname = NULL;
     hints.ai_addr = NULL;
     hints.ai_next = NULL;
 
-    s = getaddrinfo(NULL, "www.torproject.org", &hints, &result);
+    s = getaddrinfo(NULL, "torproject.org", &hints, &result);
     if (s != 0) {
         printf("getaddrinfo: %s\n", gai_strerror(s));
     }
 
-    return 0;
+    return s;
 }
 
 /* Unavailable in glibc. */
@@ -855,10 +915,10 @@ static int connect_test(const char *name, const char *ip, int port)
     printf("\n---------------------- %s connect() TEST----------------------\n\n", name);
 
     if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
-        return 1;
+        return -1;
 
     if (connect(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0)
-        return 1;
+        return -1;
 
     return 0;
 }
@@ -879,19 +939,29 @@ static int connect_internet_test()
     return connect_test(name, ip, port);
 }
 
+static char * txtquery_test()
+{
+    const char *domain = "google.com";
+    unsigned int ttl;
+    return txtquery(domain, &ttl);
+}
+
 int main() {
 
-    getaddrinfo_test();
+    expect_int(getaddrinfo_test(), EAI_SERVICE, "getaddrinfo_test");
     udp_test();
-    gethostbyaddr_test();
-    gethostbyname_test();
-    connect_local_test();
-    connect_internet_test();
+    expect_int(gethostbyaddr_test(), 0, "gethostbyaddr_test");
+    expect_int(gethostbyname_test(), 0, "gethostbyname_test");
+    expect_int(connect_local_test(), -1, "connect_local_test");
+    expect_int(connect_internet_test(), 0, "connect_internet_test");
     res_internet_tests();
     res_local_tests();
     epoll_test();
     epoll_test2();
+    notexpect_charstar(txtquery_test(), "", 1, "txtquery_test");
     icmp_test();
 
-    return 0;
+    printf("\n---------------------- TESTS SUMMARY: %d SUCCESSES, %d FAILURES ----------------------\n\n", success, failure);
+
+    return failure;
 }
