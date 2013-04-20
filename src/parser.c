@@ -164,7 +164,7 @@ static int check_server(struct serverent *server) {
         server->type = 4;
     }
 
-    /* Default to using Optimistic Data */
+    /* Default to using optimistic data */
     if (server->use_optdata == -1) {
         server->use_optdata = 1;
     }
