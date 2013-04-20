@@ -1281,10 +1281,12 @@ ssize_t torsocks_write_guts(WRITE_SIGNATURE, ssize_t(*original_write)(WRITE_SIGN
 
     /* Are we handling this connect? */
     if ((conn = find_socks_request(fd, 1))) {
-        if (conn->state != DONE || (conn->using_optdata &&
-             ((conn->state != SENTV4REQ) || (conn->state != SENTV5CONNECT)))) {
+        if (conn->state != DONE &&
+            (!conn->using_optdata ||
+             (conn->using_optdata &&
+             ((conn->state != SENTV4REQ) && (conn->state != SENTV5CONNECT))))) {
             errno = ENOTCONN;
-            return(-1);
+            return -1;
         }
     }
 
@@ -1330,8 +1332,10 @@ ssize_t torsocks_send_guts(SEND_SIGNATURE, ssize_t(*original_send)(SEND_SIGNATUR
 
     /* Are we handling this connect? */
     if ((conn = find_socks_request(fd, 1))) {
-        if (conn->state != DONE || (conn->using_optdata &&
-             ((conn->state != SENTV4REQ) || (conn->state != SENTV5CONNECT)))) {
+        if (conn->state != DONE &&
+            (!conn->using_optdata ||
+             (conn->using_optdata &&
+             ((conn->state != SENTV4REQ) && (conn->state != SENTV5CONNECT))))) {
             errno = ENOTCONN;
             return(-1);
         }
@@ -1394,6 +1398,8 @@ ssize_t torsocks_readv_guts(READV_SIGNATURE, ssize_t(*original_readv)(READV_SIGN
 
 ssize_t torsocks_writev_guts(WRITEV_SIGNATURE, ssize_t(*original_writev)(WRITEV_SIGNATURE))
 {
+    struct connreq *conn;
+
     /* If the real writev doesn't exist, we're stuffed */
     if (original_writev == NULL) {
         show_msg(MSGERR, "Unresolved symbol: writev\n");
@@ -1401,6 +1407,17 @@ ssize_t torsocks_writev_guts(WRITEV_SIGNATURE, ssize_t(*original_writev)(WRITEV_
     }
 
     show_msg(MSGTEST, "Got writev request\n");
+
+    /* Are we handling this connect? */
+    if ((conn = find_socks_request(fd, 1))) {
+        if (conn->state != DONE &&
+            (!conn->using_optdata ||
+             (conn->using_optdata &&
+             ((conn->state != SENTV4REQ) && (conn->state != SENTV5CONNECT))))) {
+            errno = ENOTCONN;
+            return -1;
+        }
+    }
 
     return original_writev(fd, iov, iovcnt);
 }
