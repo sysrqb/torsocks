@@ -49,6 +49,10 @@ void tsocks_mutex_unlock(tsocks_mutex_t *m);
 #include <unistd.h>
 #include <sys/syscall.h>
 
+#define _GNU_SOURCE
+#define __USE_GNU
+#include <fcntl.h>
+
 /*
  * Some old system requires kernel headers for those values. If they are not
  * defined, set them to a bad syscall value. Just to be clear, if the value is
@@ -95,6 +99,10 @@ void tsocks_mutex_unlock(tsocks_mutex_t *m);
 #define TSOCKS_NR_LISTEN    __NR_listen
 #define TSOCKS_NR_RECVMSG   __NR_recvmsg
 
+#define TSOCKS_SPLICE_NAME splice
+#define TSOCKS_SPLICE_ARGS out_fd, in_fd, NULL, \
+				NULL, 100, SPLICE_F_MOVE
+
 #endif /* __linux__ */
 
 #if (defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__darwin__) || defined(__NetBSD__))
@@ -115,6 +123,13 @@ void tsocks_mutex_unlock(tsocks_mutex_t *m);
 #define TSOCKS_NR_GETPEERNAME SYS_getpeername
 #define TSOCKS_NR_LISTEN    SYS_listen
 #define TSOCKS_NR_RECVMSG   SYS_recvmsg
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/uio.h>
+
+#define TSOCKS_SPLICE_NAME sendfile
+#define TSOCKS_SPLICE_ARGS in_fd, out_fd, 0, 0, NULL, NULL, 0
 
 #endif /* __FreeBSD__, __FreeBSD_kernel__, __darwin__, __NetBSD__ */
 

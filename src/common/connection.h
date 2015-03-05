@@ -21,6 +21,7 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include "defaults.h"
 #include "ht.h"
@@ -28,9 +29,11 @@
 #include "ref.h"
 
 enum connection_domain {
+	CONNECTION_DOMAIN_UNKNOWN  = 0,
 	CONNECTION_DOMAIN_INET	= 1,
 	CONNECTION_DOMAIN_INET6	= 2,
 	CONNECTION_DOMAIN_NAME  = 3,
+	CONNECTION_DOMAIN_UNIX  = 4,
 };
 
 /*
@@ -47,6 +50,7 @@ struct connection_addr {
 	union {
 		struct sockaddr_in sin;
 		struct sockaddr_in6 sin6;
+		struct sockaddr_un sun;
 	} u;
 };
 
@@ -55,11 +59,17 @@ struct connection_addr {
  * connect(2) hijacked call.
  */
 struct connection {
-	/* Socket fd and also unique ID. */
-	int fd;
+	/* Socket fd created by the application and also unique ID. */
+	int app_fd;
+
+	/* Socket fd created by torsocks for connecting to Tor */
+        int tsocks_fd;
 
 	/* Remote destination that passes through Tor. */
 	struct connection_addr dest_addr;
+
+	/* Tor SOCKS connection */
+	struct connection_addr tsocks_addr;
 
 	/*
 	 * Object refcount needed to access this object outside the registry lock.

@@ -328,7 +328,7 @@ static int setup_tor_connection(struct connection *conn,
 
 	assert(conn);
 
-	DBG("Setting up a connection to the Tor network on fd %d", conn->fd);
+	DBG("Setting up a connection to the Tor network on fd %d", conn->app_fd);
 
 	ret = socks5_connect(conn);
 	if (ret < 0) {
@@ -404,7 +404,7 @@ int tsocks_connect_to_tor(struct connection *conn)
 
 	assert(conn);
 
-	DBG("Connecting to the Tor network on fd %d", conn->fd);
+	DBG("Connecting to the Tor network on fd %d", conn->app_fd);
 
 	/* Is this configuration is set to use SOCKS5 authentication. */
 	if (tsocks_config.socks5_use_auth) {
@@ -500,8 +500,8 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 		}
 	}
 
-	conn.fd = tsocks_libc_socket(af, SOCK_STREAM, IPPROTO_TCP);
-	if (conn.fd < 0) {
+	conn.tsocks_fd = tsocks_libc_socket(af, SOCK_STREAM, IPPROTO_TCP);
+	if (conn.tsocks_fd < 0) {
 		PERROR("socket");
 		ret = -errno;
 		goto error;
@@ -524,7 +524,7 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 	}
 
 end_close:
-	if (tsocks_libc_close(conn.fd) < 0) {
+	if (tsocks_libc_close(conn.tsocks_fd) < 0) {
 		PERROR("close");
 	}
 end:
@@ -547,8 +547,8 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 
 	DBG("Resolving %" PRIu32 " on the Tor network", addr);
 
-	conn.fd = tsocks_libc_socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (conn.fd < 0) {
+	conn.tsocks_fd = tsocks_libc_socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (conn.tsocks_fd < 0) {
 		PERROR("socket");
 		ret = -errno;
 		goto error;
@@ -572,7 +572,7 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 	}
 
 end_close:
-	if (tsocks_libc_close(conn.fd) < 0) {
+	if (tsocks_libc_close(conn.tsocks_fd) < 0) {
 		PERROR("close");
 	}
 
