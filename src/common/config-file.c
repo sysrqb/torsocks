@@ -145,6 +145,24 @@ error:
 	return ret;
 }
 
+static enum connection_domain address_type(const char *addr) {
+	int ret;
+
+	ret = utils_is_address_ipv4(addr);
+	if (ret == 1 )
+            return CONNECTION_DOMAIN_INET;
+
+	ret = utils_is_address_ipv6(addr);
+	if (ret == 1 )
+            return CONNECTION_DOMAIN_INET6;
+
+	ret = utils_is_address_unix_domain(addr);
+	if (ret == 1 )
+            return CONNECTION_DOMAIN_UNIX;
+
+	return CONNECTION_DOMAIN_UNKNOWN;
+}
+
 /*
  * Set the given string address in a configuration object.
  *
@@ -153,23 +171,16 @@ error:
  */
 static int set_tor_address(const char *addr, struct configuration *config)
 {
-	int ret;
-
+        int ret = -1;
 	assert(addr);
 	assert(config);
 
-	ret = utils_is_address_ipv4(addr);
-	if (ret == 1 ) {
-		config->conf_file.tor_domain = CONNECTION_DOMAIN_INET;
-	} else {
-		ret = utils_is_address_ipv6(addr);
-		if (ret != 1) {
-			/* At this point, the addr is either v4 nor v6 so error. */
-			ERR("Config file unknown tor address: %s", addr);
-			goto error;
-		}
-		config->conf_file.tor_domain = CONNECTION_DOMAIN_INET6;
+        enum connection_domain domain = address_type(addr);
+	if (domain == CONNECTION_DOMAIN_UNKNOWN) {
+		ERR("Config file unknown tor address: %s", addr);
+		goto error;
 	}
+	config->conf_file.tor_domain = domain;
 	config->conf_file.tor_address = strdup(addr);
 	if (!config->conf_file.tor_address) {
 		ret = -ENOMEM;

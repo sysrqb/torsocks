@@ -30,6 +30,8 @@ int utils_tokenize_ignore_comments(const char *_line, size_t size, char **tokens
 
 int utils_is_address_ipv4(const char *ip);
 int utils_is_address_ipv6(const char *ip);
+int utils_is_address_unix_domain(const char *address);
+char *utils_unix_socket_path(const char *path);
 int utils_sockaddr_is_localhost(const struct sockaddr *sa);
 int utils_localhost_resolve(const char *name, int af, void *buf, size_t len);
 int utils_is_addr_any(const struct sockaddr *sa);
