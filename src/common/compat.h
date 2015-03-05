@@ -172,8 +172,8 @@ void tsocks_once(tsocks_once_t *o, void (*init_routine)(void));
 #define TSOCKS_NR_INOTIFY_RM_WATCH  __NR_inotify_rm_watch
 
 #define TSOCKS_SPLICE_NAME splice
-#define TSOCKS_SPLICE_ARGS out_fd, in_fd, NULL, \
-				NULL, 100, SPLICE_F_MOVE
+#define TSOCKS_SPLICE_ARGS out_fd, NULL, in_fd, NULL, \
+				100, SPLICE_F_MOVE
 
 #endif /* __linux__ */
 
