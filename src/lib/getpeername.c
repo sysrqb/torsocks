@@ -80,6 +80,12 @@ LIBC_GETPEERNAME_RET_TYPE tsocks_getpeername(LIBC_GETPEERNAME_SIG)
 		memcpy(addr, (const struct sockaddr *) &conn->dest_addr.u.sin6,
 				*addrlen);
 		break;
+	case CONNECTION_DOMAIN_UNKNOWN:
+	case CONNECTION_DOMAIN_UNIX:
+		ERR("Destination socket unsupported type");
+		errno = EINVAL;
+		ret = -1;
+		goto end;
 	}
 
 	/* Success. */

@@ -129,7 +129,7 @@ int utils_is_address_unix_domain(const char *address)
 }
 
 ATTR_HIDDEN
-char *utils_unix_socket_path(const char *path) {
+const char *utils_unix_socket_path(const char *path) {
 	if (utils_is_address_unix_domain(path) == -1)
 		return NULL;
 	return path + strlen(unix_prefix);

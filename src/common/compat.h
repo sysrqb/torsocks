@@ -100,8 +100,8 @@ void tsocks_mutex_unlock(tsocks_mutex_t *m);
 #define TSOCKS_NR_RECVMSG   __NR_recvmsg
 
 #define TSOCKS_SPLICE_NAME splice
-#define TSOCKS_SPLICE_ARGS out_fd, in_fd, NULL, \
-				NULL, 100, SPLICE_F_MOVE
+#define TSOCKS_SPLICE_ARGS out_fd, NULL, in_fd, NULL, \
+				100, SPLICE_F_MOVE
 
 #endif /* __linux__ */
 
