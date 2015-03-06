@@ -170,6 +170,15 @@ struct hostent **result, int *h_errnop
 	int sockfd, struct sockaddr *addr, socklen_t *addrlen
 #define LIBC_GETPEERNAME_ARGS  sockfd, addr, addrlen
 
+/* recv(2) */
+#define LIBC_RECV_NAME recv
+#define LIBC_RECV_NAME_STR XSTR(LIBC_RECV_NAME)
+#define LIBC_RECV_RET_TYPE ssize_t
+#define LIBC_RECV_SIG \
+	int sockfd, void *buf, size_t len, int flags
+#define LIBC_RECV_ARGS \
+	sockfd, buf, len, flags
+
 /* recvmsg(2) */
 #define LIBC_RECVMSG_NAME recvmsg
 #define LIBC_RECVMSG_NAME_STR XSTR(LIBC_RECVMSG_NAME)
@@ -178,6 +187,16 @@ struct hostent **result, int *h_errnop
 	int sockfd, struct msghdr *msg, int flags
 #define LIBC_RECVMSG_ARGS \
 	sockfd, msg, flags
+
+/* recvfrom(2) */
+#define LIBC_RECVFROM_NAME recvfrom
+#define LIBC_RECVFROM_NAME_STR XSTR(LIBC_RECVFROM_NAME)
+#define LIBC_RECVFROM_RET_TYPE ssize_t
+#define LIBC_RECVFROM_SIG \
+	int sockfd, void *buf, size_t len, int flags, \
+	struct sockaddr *src_addr, socklen_t *addrlen
+#define LIBC_RECVFROM_ARGS \
+	sockfd, buf, len, flags, sockaddr, addrlen
 
 /* sendto(2) */
 #define LIBC_SENDTO_NAME sendto
@@ -282,11 +301,23 @@ TSOCKS_DECL(connect, LIBC_CONNECT_RET_TYPE, LIBC_CONNECT_SIG)
 #define LIBC_CONNECT_DECL \
 	LIBC_CONNECT_RET_TYPE LIBC_CONNECT_NAME(LIBC_CONNECT_SIG)
 
+/* recv(2) */
+extern TSOCKS_LIBC_DECL(recv, LIBC_RECV_RET_TYPE, LIBC_RECV_SIG)
+TSOCKS_DECL(recv, LIBC_RECV_RET_TYPE, LIBC_RECV_SIG)
+#define LIBC_RECV_DECL \
+		LIBC_RECV_RET_TYPE LIBC_RECV_NAME(LIBC_RECV_SIG)
+
 /* recvmsg(2) */
 extern TSOCKS_LIBC_DECL(recvmsg, LIBC_RECVMSG_RET_TYPE, LIBC_RECVMSG_SIG)
 TSOCKS_DECL(recvmsg, LIBC_RECVMSG_RET_TYPE, LIBC_RECVMSG_SIG)
 #define LIBC_RECVMSG_DECL \
 		LIBC_RECVMSG_RET_TYPE LIBC_RECVMSG_NAME(LIBC_RECVMSG_SIG)
+
+/* recvfrom(2) */
+extern TSOCKS_LIBC_DECL(recvfrom, LIBC_RECVFROM_RET_TYPE, LIBC_RECVFROM_SIG)
+TSOCKS_DECL(recvfrom, LIBC_RECVFROM_RET_TYPE, LIBC_RECVFROM_SIG)
+#define LIBC_RECVFROM_DECL \
+		LIBC_RECVFROM_RET_TYPE LIBC_RECVFROM_NAME(LIBC_RECVFROM_SIG)
 
 /* sendto(2) */
 extern TSOCKS_LIBC_DECL(sendto, LIBC_SENDTO_RET_TYPE, LIBC_SENDTO_SIG)
