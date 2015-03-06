@@ -19,8 +19,15 @@
 #include <stdlib.h>
 
 #include <common/log.h>
+#include <common/connection.h>
 
 #include "torsocks.h"
+
+/* recv(2) */
+TSOCKS_LIBC_DECL(recv, LIBC_RECV_RET_TYPE, LIBC_RECV_SIG)
+
+/* recvfrom(2) */
+TSOCKS_LIBC_DECL(recvfrom, LIBC_RECVFROM_RET_TYPE, LIBC_RECVFROM_SIG)
 
 /* recvmsg(2) */
 TSOCKS_LIBC_DECL(recvmsg, LIBC_RECVMSG_RET_TYPE, LIBC_RECVMSG_SIG)
@@ -44,6 +51,42 @@ static void close_fds(int *fds, size_t count)
 	for (i = 0; i < count; i++) {
 		tsocks_libc_close(fds[i]);
 	}
+}
+
+/*
+ * Torsocks call for recv(2)
+ *
+ * We hijack this call so we can splice together the app<->torsocks
+ * and torsocks<->op connections.
+ */
+LIBC_RECV_RET_TYPE tsocks_recv(LIBC_RECV_SIG)
+{
+	struct connection *conn;
+
+	conn = connection_find(sockfd);
+	if (conn) {
+		sockfd = conn->tor_fd;
+		DBG("[recv] Found conn %#x with tsocks fd %d", conn, sockfd);
+	}
+	return tsocks_libc_recv(LIBC_RECV_ARGS);
+}
+
+/*
+ * Torsocks call for recvfrom(2)
+ *
+ * We hijack this call so we can splice together the app<->torsocks
+ * and torsocks<->op connections.
+ */
+LIBC_RECVFROM_RET_TYPE tsocks_recvfrom(LIBC_RECVFROM_SIG)
+{
+	struct connection *conn;
+
+	conn = connection_find(sockfd);
+	if (conn) {
+		sockfd = conn->tor_fd;
+		DBG("[recvfrom] Found conn %#x with tsocks fd %d", conn, sockfd);
+	}
+	return tsocks_libc_recvfrom(LIBC_RECVFROM_ARGS);
 }
 
 /*
@@ -171,6 +214,34 @@ libc:
 
 error:
 	return ret;
+}
+
+/*
+ * Libc hijacked symbol recv(2).
+ */
+LIBC_RECV_DECL
+{
+	if (!tsocks_libc_recv) {
+		/* Find symbol if not already set. Exit if not found. */
+		tsocks_libc_recv = tsocks_find_libc_symbol(LIBC_RECV_NAME_STR,
+				TSOCKS_SYM_EXIT_NOT_FOUND);
+	}
+
+	return tsocks_recv(LIBC_RECV_ARGS);
+}
+
+/*
+ * Libc hijacked symbol recvfrom(2).
+ */
+LIBC_RECVFROM_DECL
+{
+	if (!tsocks_libc_recvfrom) {
+		/* Find symbol if not already set. Exit if not found. */
+		tsocks_libc_recvfrom = tsocks_find_libc_symbol(LIBC_RECVFROM_NAME_STR,
+				TSOCKS_SYM_EXIT_NOT_FOUND);
+	}
+
+	return tsocks_recvfrom(LIBC_RECVFROM_ARGS);
 }
 
 /*
