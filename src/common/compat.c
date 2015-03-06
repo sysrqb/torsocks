@@ -72,8 +72,8 @@ void tsocks_mutex_unlock(tsocks_mutex_t *m)
 }
 
 ssize_t
-tsocks_splice_sockets(int in_fd, int out_fd)
+tsocks_splice_sockets(int in_fd, int out_fd, size_t len)
 {
-    return TSOCKS_SPLICE_NAME(TSOCKS_SPLICE_ARGS);
+	return TSOCKS_SPLICE_NAME(TSOCKS_SPLICE_ARGS);
 }
 #endif /* __GLIBC__, __darwin__, __FreeBSD__, __NetBSD__ */

@@ -22,6 +22,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
+#include <common/compat.h>
 #include <common/config-file.h>
 #include <common/connection.h>
 #include <common/defaults.h>
@@ -442,6 +443,14 @@ int tsocks_connect_to_tor(struct connection *conn)
 	if (ret < 0) {
 		goto error;
 	}
+
+#if defined(TSOCKS_SPLICE_SOCKOPT)
+	if (setsockopts(TSOCKS_SPLICE_SOCKOPT) == -1) {
+		ERR("SO_SPLICE sockopt failed.");
+		ret = errno;
+		goto error;
+	}
+#endif /* TSOCKS_SPLICE_SOCKOPT */
 
 error:
 	return ret;
