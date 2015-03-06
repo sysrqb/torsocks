@@ -22,7 +22,7 @@
 #define __darwin__	1
 #endif
 
-#if (defined(__GLIBC__) || defined(__FreeBSD__) || defined(__darwin__) || defined(__NetBSD__))
+#if (defined(__GLIBC__) || defined(__FreeBSD__) || defined(__darwin__) || defined(__NetBSD__) || defined(__OpenBSD__))
 
 #define RTLD_NEXT	((void *) -1)
 
@@ -55,7 +55,7 @@ void tsocks_once(tsocks_once_t *o, void (*init_routine)(void));
 
 #else
 #error "OS not supported."
-#endif /* __GLIBC__, __darwin__, __FreeBSD__, __NetBSD__ */
+#endif /* __GLIBC__, __darwin__, __FreeBSD__, __NetBSD__, __OpenBSD__ */
 
 #if defined(__linux__)
 #include <unistd.h>
@@ -177,7 +177,7 @@ void tsocks_once(tsocks_once_t *o, void (*init_routine)(void));
 
 #endif /* __linux__ */
 
-#if (defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__darwin__) || defined(__NetBSD__))
+#if (defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__darwin__) || defined(__NetBSD__) || defined(__OpenBSD__))
 
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -200,8 +200,27 @@ void tsocks_once(tsocks_once_t *o, void (*init_routine)(void));
 #include <sys/socket.h>
 #include <sys/uio.h>
 
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #define TSOCKS_SPLICE_NAME sendfile
-#define TSOCKS_SPLICE_ARGS in_fd, out_fd, 0, 0, NULL, NULL, 0
+#define TSOCKS_SPLICE_ARGS in_fd, out_fd, len, 0, NULL, NULL, 0
+#endif /* __FreeBSD__, __FreeBSD_kernel__ */
+
+#if defined(__darwin__)
+#define TSOCKS_SPLICE_NAME sendfile
+#define TSOCKS_SPLICE_ARGS in_fd, out_fd, &len, 0, NULL, NULL, 0
+#endif /* __darwin__ */
+
+#if defined(__OpenBSD__)
+#define TSOCKS_SPLICE_NAME void
+#define TSOCKS_SPLICE_ARGS
+#define TSOCKS_SPLICE_SOCKOPT conn->tsocks_fd, SOL_SOCKET, SO_SPLICE, conn->app_fd
+#endif /* __OpenBSD__ */
+
+#if defined(__NetBSD__)
+#define TSOCKS_SPLICE_NAME void
+#define TSOCKS_SPLICE_ARGS
+#endif /* __NetBSD__ */
+
 
 #endif /* __FreeBSD__, __FreeBSD_kernel__, __darwin__, __NetBSD__ */
 
