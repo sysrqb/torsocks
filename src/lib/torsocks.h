@@ -196,7 +196,7 @@ struct hostent **result, int *h_errnop
 	int sockfd, void *buf, size_t len, int flags, \
 	struct sockaddr *src_addr, socklen_t *addrlen
 #define LIBC_RECVFROM_ARGS \
-	sockfd, buf, len, flags, sockaddr, addrlen
+	sockfd, buf, len, flags, src_addr, addrlen
 
 /* sendto(2) */
 #define LIBC_SENDTO_NAME sendto
