@@ -222,6 +222,24 @@ struct hostent **result, int *h_errnop
 #define LIBC_RECVFROM_ARGS \
 	sockfd, buf, len, flags, src_addr, addrlen
 
+/* send(2) */
+#define LIBC_SEND_NAME send
+#define LIBC_SEND_NAME_STR XSTR(LIBC_SEND_NAME)
+#define LIBC_SEND_RET_TYPE ssize_t
+#define LIBC_SEND_SIG \
+	int sockfd, const void *buf, size_t len, int flags
+#define LIBC_SEND_ARGS \
+	sockfd, buf, len, flags
+
+/* sendmsg(2) */
+#define LIBC_SENDMSG_NAME sendmsg
+#define LIBC_SENDMSG_NAME_STR XSTR(LIBC_SENDMSG_NAME)
+#define LIBC_SENDMSG_RET_TYPE ssize_t
+#define LIBC_SENDMSG_SIG \
+	int sockfd, const struct msghdr *msg, int flags
+#define LIBC_SENDMSG_ARGS \
+	sockfd, msg, flags
+
 /* sendto(2) */
 #define LIBC_SENDTO_NAME sendto
 #define LIBC_SENDTO_NAME_STR XSTR(LIBC_SENDTO_NAME)
@@ -340,6 +358,18 @@ extern TSOCKS_LIBC_DECL(recvfrom, LIBC_RECVFROM_RET_TYPE, LIBC_RECVFROM_SIG)
 TSOCKS_DECL(recvfrom, LIBC_RECVFROM_RET_TYPE, LIBC_RECVFROM_SIG)
 #define LIBC_RECVFROM_DECL \
 		LIBC_RECVFROM_RET_TYPE LIBC_RECVFROM_NAME(LIBC_RECVFROM_SIG)
+
+/* send(2) */
+extern TSOCKS_LIBC_DECL(send, LIBC_SEND_RET_TYPE, LIBC_SEND_SIG)
+TSOCKS_DECL(send, LIBC_SEND_RET_TYPE, LIBC_SEND_SIG)
+#define LIBC_SEND_DECL \
+		LIBC_SEND_RET_TYPE LIBC_SEND_NAME(LIBC_SEND_SIG)
+
+/* sendmsg(2) */
+extern TSOCKS_LIBC_DECL(sendmsg, LIBC_SENDMSG_RET_TYPE, LIBC_SENDMSG_SIG)
+TSOCKS_DECL(sendmsg, LIBC_SENDMSG_RET_TYPE, LIBC_SENDMSG_SIG)
+#define LIBC_SENDMSG_DECL \
+		LIBC_SENDMSG_RET_TYPE LIBC_SENDMSG_NAME(LIBC_SENDMSG_SIG)
 
 /* sendto(2) */
 extern TSOCKS_LIBC_DECL(sendto, LIBC_SENDTO_RET_TYPE, LIBC_SENDTO_SIG)
