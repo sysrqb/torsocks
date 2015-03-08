@@ -47,6 +47,7 @@ LIBC_FCLOSE_RET_TYPE tsocks_fclose(LIBC_FCLOSE_SIG)
 	connection_registry_lock();
 	conn = connection_find(fd);
 	if (conn) {
+		tsocks_libc_close(conn->tsocks_fd);
 		/*
 		 * Remove from the registry so it's not visible anymore and thus using
 		 * it without lock.
