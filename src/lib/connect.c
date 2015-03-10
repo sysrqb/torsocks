@@ -195,17 +195,18 @@ LIBC_CONNECT_RET_TYPE tsocks_connect(LIBC_CONNECT_SIG)
 		}
 	}
 
+	if (connection_find(new_conn->app_fd) == NULL) {
+		connection_registry_lock();
+		connection_insert(new_conn);
+		connection_registry_unlock();
+	}
+
 	/* Connect the socket to the Tor network. */
 	ret = tsocks_connect_to_tor(new_conn);
 	if (ret < 0) {
 		ret_errno = -ret;
 		goto error_free;
 	}
-
-	connection_registry_lock();
-	/* This can't fail since a lookup was done previously. */
-	connection_insert(new_conn);
-	connection_registry_unlock();
 
 	/* Flag errno for success */
 	ret = errno = 0;

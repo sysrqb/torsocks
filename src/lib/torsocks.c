@@ -552,6 +552,7 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 	}
 
 	conn.tsocks_fd = tsocks_libc_socket(af, SOCK_STREAM, IPPROTO_TCP);
+	conn.app_fd = conn.tsocks_fd;
 	if (conn.tsocks_fd < 0) {
 		PERROR("socket");
 		ret = -errno;
@@ -565,7 +566,11 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 		socks5_method = SOCKS5_NO_AUTH_METHOD;
 	}
 
+	connection_registry_lock();
+	connection_insert(&conn);
+	connection_registry_unlock();
 	ret = setup_tor_connection(&conn, socks5_method);
+
 	if (ret < 0) {
 		goto end_close;
 	}
@@ -620,6 +625,7 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 		ret = -errno;
 		goto error;
 	}
+	conn.app_fd = conn.tsocks_fd;
 	conn.dest_addr.domain = CONNECTION_DOMAIN_INET;
 
 	/* Is this configuration is set to use SOCKS5 authentication. */

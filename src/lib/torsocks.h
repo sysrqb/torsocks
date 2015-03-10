@@ -170,6 +170,24 @@ struct hostent **result, int *h_errnop
 	int sockfd, struct sockaddr *addr, socklen_t *addrlen
 #define LIBC_GETPEERNAME_ARGS  sockfd, addr, addrlen
 
+/* read(2) */
+#define LIBC_READ_NAME read
+#define LIBC_READ_NAME_STR XSTR(LIBC_READ_NAME)
+#define LIBC_READ_RET_TYPE ssize_t
+#define LIBC_READ_SIG \
+	int fd, void *buf, size_t count
+#define LIBC_READ_ARGS \
+	fd, buf, count
+
+/* readv(2) */
+#define LIBC_READV_NAME readv
+#define LIBC_READV_NAME_STR XSTR(LIBC_READV_NAME)
+#define LIBC_READV_RET_TYPE ssize_t
+#define LIBC_READV_SIG \
+	int fd, const struct iovec *iov, int iovcnt
+#define LIBC_READV_ARGS \
+	fd, iov, iovcnt
+
 /* recv(2) */
 #define LIBC_RECV_NAME recv
 #define LIBC_RECV_NAME_STR XSTR(LIBC_RECV_NAME)
@@ -197,6 +215,24 @@ struct hostent **result, int *h_errnop
 	struct sockaddr *src_addr, socklen_t *addrlen
 #define LIBC_RECVFROM_ARGS \
 	sockfd, buf, len, flags, src_addr, addrlen
+
+/* write(2) */
+#define LIBC_WRITE_NAME write
+#define LIBC_WRITE_NAME_STR XSTR(LIBC_WRITE_NAME)
+#define LIBC_WRITE_RET_TYPE ssize_t
+#define LIBC_WRITE_SIG \
+	int fd, const void *buf, size_t count
+#define LIBC_WRITE_ARGS \
+	fd, buf, count
+
+/* writev(2) */
+#define LIBC_WRITEV_NAME writev
+#define LIBC_WRITEV_NAME_STR XSTR(LIBC_WRITEV_NAME)
+#define LIBC_WRITEV_RET_TYPE ssize_t
+#define LIBC_WRITEV_SIG \
+	int fd, const struct iovec *iov, int iovcnt
+#define LIBC_WRITEV_ARGS \
+	fd, iov, iovcnt
 
 /* send(2) */
 #define LIBC_SEND_NAME send
@@ -319,6 +355,18 @@ TSOCKS_DECL(connect, LIBC_CONNECT_RET_TYPE, LIBC_CONNECT_SIG)
 #define LIBC_CONNECT_DECL \
 	LIBC_CONNECT_RET_TYPE LIBC_CONNECT_NAME(LIBC_CONNECT_SIG)
 
+/* read(2) */
+extern TSOCKS_LIBC_DECL(read, LIBC_READ_RET_TYPE, LIBC_READ_SIG)
+TSOCKS_DECL(read, LIBC_READ_RET_TYPE, LIBC_READ_SIG)
+#define LIBC_READ_DECL \
+		LIBC_READ_RET_TYPE LIBC_READ_NAME(LIBC_READ_SIG)
+
+/* readv(2) */
+extern TSOCKS_LIBC_DECL(readv, LIBC_READV_RET_TYPE, LIBC_READV_SIG)
+TSOCKS_DECL(readv, LIBC_READV_RET_TYPE, LIBC_READV_SIG)
+#define LIBC_READV_DECL \
+		LIBC_READV_RET_TYPE LIBC_READV_NAME(LIBC_READV_SIG)
+
 /* recv(2) */
 extern TSOCKS_LIBC_DECL(recv, LIBC_RECV_RET_TYPE, LIBC_RECV_SIG)
 TSOCKS_DECL(recv, LIBC_RECV_RET_TYPE, LIBC_RECV_SIG)
@@ -336,6 +384,18 @@ extern TSOCKS_LIBC_DECL(recvfrom, LIBC_RECVFROM_RET_TYPE, LIBC_RECVFROM_SIG)
 TSOCKS_DECL(recvfrom, LIBC_RECVFROM_RET_TYPE, LIBC_RECVFROM_SIG)
 #define LIBC_RECVFROM_DECL \
 		LIBC_RECVFROM_RET_TYPE LIBC_RECVFROM_NAME(LIBC_RECVFROM_SIG)
+
+/* write(2) */
+extern TSOCKS_LIBC_DECL(write, LIBC_WRITE_RET_TYPE, LIBC_WRITE_SIG)
+TSOCKS_DECL(write, LIBC_WRITE_RET_TYPE, LIBC_WRITE_SIG)
+#define LIBC_WRITE_DECL \
+		LIBC_WRITE_RET_TYPE LIBC_WRITE_NAME(LIBC_WRITE_SIG)
+
+/* writev(2) */
+extern TSOCKS_LIBC_DECL(writev, LIBC_WRITEV_RET_TYPE, LIBC_WRITEV_SIG)
+TSOCKS_DECL(writev, LIBC_WRITEV_RET_TYPE, LIBC_WRITEV_SIG)
+#define LIBC_WRITEV_DECL \
+		LIBC_WRITEV_RET_TYPE LIBC_WRITEV_NAME(LIBC_WRITEV_SIG)
 
 /* send(2) */
 extern TSOCKS_LIBC_DECL(send, LIBC_SEND_RET_TYPE, LIBC_SEND_SIG)

@@ -143,7 +143,7 @@ int socks5_connect(struct connection *conn)
 	struct sockaddr *socks5_addr = NULL;
 
 	assert(conn);
-	assert(conn->app_fd >= 0 || conn->tsocks_fd);
+	assert(conn->app_fd >= 0);
 
 	/*
 	 * We use the connection domain here since the connect() call MUST match
@@ -224,7 +224,7 @@ int socks5_send_method(struct connection *conn, uint8_t type)
 	struct socks5_method_req msg;
 
 	assert(conn);
-	assert(conn->tsocks_fd >= 0);
+	assert(conn->app_fd >= 0 && conn->tsocks_fd > 0);
 
 	msg.ver = SOCKS5_VERSION;
 	msg.nmethods = 0x01;
@@ -232,8 +232,7 @@ int socks5_send_method(struct connection *conn, uint8_t type)
 
 	DBG("Socks5 sending method ver: %d, nmethods 0x%02x, methods 0x%02x",
 			msg.ver, msg.nmethods, msg.methods);
-
-	ret_send = send_data(conn->tsocks_fd, &msg, sizeof(msg));
+	ret_send = send_data(conn->app_fd, &msg, sizeof(msg));
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -256,9 +255,9 @@ int socks5_recv_method(struct connection *conn)
 	struct socks5_method_res msg;
 
 	assert(conn);
-	assert(conn->tsocks_fd >= 0);
+	assert(conn->app_fd >= 0 && conn->tsocks_fd > 0);
 
-	ret_recv = recv_data(conn->tsocks_fd, &msg, sizeof(msg));
+	ret_recv = recv_data(conn->app_fd, &msg, sizeof(msg));
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -327,7 +326,7 @@ int socks5_send_user_pass_request(struct connection *conn,
 	memcpy(buffer + data_len, pass, pass_len);
 	data_len += pass_len;
 
-	ret_send = send_data(conn->tsocks_fd, buffer, data_len);
+	ret_send = send_data(conn->app_fd, buffer, data_len);
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -357,7 +356,7 @@ int socks5_recv_user_pass_reply(struct connection *conn)
 	assert(conn);
 	assert(conn->tsocks_fd >= 0);
 
-	ret_recv = recv_data(conn->tsocks_fd, &msg, sizeof(msg));
+	ret_recv = recv_data(conn->app_fd, &msg, sizeof(msg));
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -469,7 +468,7 @@ int socks5_send_connect_request(struct connection *conn)
 
 	DBG("Socks5 sending connect request to fd %d", conn->tsocks_fd);
 
-	ret_send = send_data(conn->tsocks_fd, &buffer, buf_len);
+	ret_send = send_data(conn->app_fd, &buffer, buf_len);
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -522,7 +521,7 @@ int socks5_recv_connect_reply(struct connection *conn)
 		goto error;
 	}
 
-	ret_recv = recv_data(conn->tsocks_fd, buffer, recv_len);
+	ret_recv = recv_data(conn->app_fd, buffer, recv_len);
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -638,7 +637,7 @@ int socks5_send_resolve_request(const char *hostname, struct connection *conn)
 	memcpy(buffer + data_len, &req.port, sizeof(req.port));
 	data_len += sizeof(req.port);
 
-	ret_send = send_data(conn->tsocks_fd, &buffer, data_len);
+	ret_send = send_data(conn->app_fd, &buffer, data_len);
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -677,7 +676,7 @@ int socks5_recv_resolve_reply(struct connection *conn, void *addr,
 	assert(conn->tsocks_fd >= 0);
 	assert(addr);
 
-	ret_recv = recv_data(conn->tsocks_fd, &buffer, sizeof(buffer.msg));
+	ret_recv = recv_data(conn->app_fd, &buffer, sizeof(buffer.msg));
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -707,7 +706,7 @@ int socks5_recv_resolve_reply(struct connection *conn, void *addr,
 		goto error;
 	}
 
-	ret_recv = recv_data(conn->tsocks_fd, &buffer.addr, recv_len);
+	ret_recv = recv_data(conn->app_fd, &buffer.addr, recv_len);
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -787,7 +786,7 @@ int socks5_send_resolve_ptr_request(struct connection *conn, const void *ip, int
 	memcpy(buffer + data_len, &req.port, sizeof(req.port));
 	data_len += sizeof(req.port);
 
-	ret_send = send_data(conn->tsocks_fd, &buffer, data_len);
+	ret_send = send_data(conn->app_fd, &buffer, data_len);
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -823,7 +822,7 @@ int socks5_recv_resolve_ptr_reply(struct connection *conn, char **_hostname)
 	assert(conn->tsocks_fd >= 0);
 	assert(_hostname);
 
-	ret_recv = recv_data(conn->tsocks_fd, &buffer, sizeof(buffer));
+	ret_recv = recv_data(conn->app_fd, &buffer, sizeof(buffer));
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -848,7 +847,7 @@ int socks5_recv_resolve_ptr_reply(struct connection *conn, char **_hostname)
 			ret = -ENOMEM;
 			goto error;
 		}
-		ret_recv = recv_data(conn->tsocks_fd, hostname, buffer.len);
+		ret_recv = recv_data(conn->app_fd, hostname, buffer.len);
 		if (ret_recv < 0) {
 			ret = ret_recv;
 			goto error;
