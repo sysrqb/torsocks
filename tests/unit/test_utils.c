@@ -24,7 +24,7 @@
 
 #include <tap/tap.h>
 
-#define NUM_TESTS 31
+#define NUM_TESTS 36
 
 static void test_is_address_ipv4(void)
 {
@@ -59,6 +59,32 @@ static void test_is_address_ipv6(void)
 
 	ret = utils_is_address_ipv6("192.168.0.1");
 	ok(ret == 0, "Invalid IPv6 address when IPv4");
+}
+
+static void test_is_address_unix_domain(void)
+{
+	int ret = 0;
+
+	diag("Utils UNIX Socket test");
+
+	ret = utils_is_address_unix_domain("unix:");
+	ok(ret == 1, "Valid unix socket path prefix");
+
+	ret = utils_is_address_unix_domain("unix:/path/to/socket");
+	ok(ret == 1, "Valid unix socket path");
+
+	ret = utils_is_address_unix_domain("nix");
+	ok(ret == -1, "Invalid unix socket path prefix");
+
+	ret = utils_is_address_unix_domain("linuxx:");
+	ok(ret == -1, "Invalid unix socket path prefix");
+
+	ret = utils_is_address_unix_domain(
+		"unix:/path/to/very/very/long/directory/path/to/"
+		"socket/andthen/there/stood/a/man/with/nothing/but/"
+		"his/soul/for/what/does/he/live/the/world/it/was/"
+		"foretold");
+	ok(ret == -1, "Invalid unix socket path length");
 }
 
 static void test_localhost_resolve(void)
@@ -228,6 +254,7 @@ int main(int argc, char **argv)
 
 	test_is_address_ipv4();
 	test_is_address_ipv6();
+	test_is_address_unix_domain();
 	test_localhost_resolve();
 	test_sockaddr_is_localhost();
 	test_utils_tokenize_ignore_comments();
