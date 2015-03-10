@@ -356,11 +356,15 @@ static int setup_tor_connection(struct connection *conn,
 
 	ret = socks5_send_method(conn, socks5_method);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
 	ret = socks5_recv_method(conn);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
@@ -424,11 +428,15 @@ auth_socks5(struct connection *conn)
 			tsocks_config.conf_file.socks5_username,
 			tsocks_config.conf_file.socks5_password);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
 	ret = socks5_recv_user_pass_reply(conn);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
@@ -463,6 +471,8 @@ int tsocks_connect_to_tor(struct connection *conn)
 
 	ret = setup_tor_connection(conn, socks5_method);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
@@ -470,17 +480,23 @@ int tsocks_connect_to_tor(struct connection *conn)
 	if (socks5_method == SOCKS5_USER_PASS_METHOD) {
 		ret = auth_socks5(conn);
 		if (ret < 0) {
+			errno = ret;
+			ret = -1;
 			goto error;
 		}
 	}
 
 	ret = socks5_send_connect_request(conn);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
 	ret = socks5_recv_connect_reply(conn);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
