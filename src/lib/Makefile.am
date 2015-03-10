@@ -9,6 +9,7 @@ lib_LTLIBRARIES = libtorsocks.la
 libtorsocks_la_SOURCES = torsocks.c torsocks.h \
                          connect.c gethostbyname.c getaddrinfo.c close.c \
                          getpeername.c socket.c syscall.c socketpair.c recv.c \
-                         exit.c accept.c listen.c fclose.c send.c
+                         exit.c accept.c listen.c fclose.c send.c read.c \
+                         write.c readv.c writev.c
 
 libtorsocks_la_LIBADD = $(top_builddir)/src/common/libcommon.la
