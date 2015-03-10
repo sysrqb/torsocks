@@ -391,7 +391,7 @@ int socks5_send_connect_request(struct connection *conn)
 	struct socks5_request msg;
 
 	assert(conn);
-	assert(conn->tsocks_fd >= 0);
+	assert(conn->app_fd >= 0 && conn->tsocks_fd);
 
 	memset(buffer, 0, sizeof(buffer));
 	buf_len = sizeof(msg);
