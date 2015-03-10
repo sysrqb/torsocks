@@ -25,7 +25,7 @@
 
 #include <tap/tap.h>
 
-#define NUM_TESTS 13
+#define NUM_TESTS 15
 
 static void test_connection_usage(void)
 {
@@ -133,6 +133,19 @@ static void test_connection_creation(void)
 		conn->dest_addr.domain == CONNECTION_DOMAIN_INET6 &&
 		conn->refcount.count == 1,
 		"Valid connection creation for IPv6");
+	connection_destroy(conn);
+
+	ret = connection_addr_set(CONNECTION_DOMAIN_UNIX,
+			"unix:/path/to/file", 9050, &c_addr);
+	ok(ret == 0 &&
+		c_addr.domain == CONNECTION_DOMAIN_UNIX &&
+		c_addr.u.sun.sun_family == AF_UNIX &&
+		!memcmp(c_addr.u.sun.sun_path, "/path/to/file", 14),
+		"Valid connection address creation for Unix socket");
+
+	conn = connection_create(42, (struct sockaddr *) &c_addr.u.sun);
+	ok(conn == NULL,
+		"Invalid connection creation for Unix socket");
 	connection_destroy(conn);
 }
 
