@@ -119,6 +119,7 @@ int connection_addr_set(enum connection_domain domain, const char *ipaddr,
 {
 	int ret;
 	const char *perror_err;
+	const char *path;
 
 	assert(ipaddr);
 	assert(addr);
@@ -158,16 +159,16 @@ int connection_addr_set(enum connection_domain domain, const char *ipaddr,
 		}
 		break;
 	case CONNECTION_DOMAIN_UNIX:
+		path = utils_unix_socket_path(ipaddr);
 		addr->domain = domain;
 		addr->u.sun.sun_family = AF_UNIX;
-		memcpy(addr->u.sun.sun_path,
-			utils_unix_socket_path(ipaddr),
-			sizeof(addr->u.sun.sun_path));
-		if (addr->u.sun.sun_path == NULL) {
+		if (path == NULL) {
 			PERROR("Connection unix socket dup path");
 			ret = -EINVAL;
 			goto error;
 		}
+		memcpy(addr->u.sun.sun_path,
+			path, strlen(path));
 		break;
 	default:
 		ERR("Connection addr set unknown domain %d", domain);
