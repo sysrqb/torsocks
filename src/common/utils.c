@@ -121,9 +121,10 @@ int utils_is_address_unix_domain(const char *address)
 	struct sockaddr_un sa;
 	if (strlen(address) < strlen(unix_prefix))
 		return -1;
-	if (strlen(address) > sizeof sa.sun_path)
-		return -1;
 	if (strncmp(address, unix_prefix, strlen(unix_prefix)))
+		return -1;
+	const char *path = address + strlen(unix_prefix);
+	if (strlen(path) > sizeof sa.sun_path)
 		return -1;
 	return 1;
 }
