@@ -144,7 +144,7 @@ static int recv_reply_address_type(struct connection *conn, struct socks5_reply 
 	int ret_recv;
 
 	assert(conn);
-	assert(conn->app_fd >= 0);
+	assert(conn->app_fd >= 0 && conn->tsocks_fd > 0);
 
 	ret_recv = recv_data(conn->app_fd, msg, sizeof(*msg));
 	if (ret_recv < 0) {
@@ -374,7 +374,7 @@ int socks5_send_user_pass_request(struct connection *conn,
 		(SOCKS5_USERNAME_LEN + SOCKS5_PASSWORD_LEN)];
 
 	assert(conn);
-	assert(conn->tsocks_fd >= 0);
+	assert(conn->app_fd >= 0 && conn->tsocks_fd > 0);
 	assert(user);
 	assert(pass);
 
@@ -429,7 +429,7 @@ int socks5_recv_user_pass_reply(struct connection *conn)
 	struct socks5_user_pass_reply msg;
 
 	assert(conn);
-	assert(conn->tsocks_fd >= 0);
+	assert(conn->app_fd >= 0 && conn->tsocks_fd > 0);
 
 	ret_recv = recv_data(conn->app_fd, &msg, sizeof(msg));
 	if (ret_recv < 0) {
@@ -466,7 +466,7 @@ int socks5_send_connect_request(struct connection *conn)
 	struct socks5_request msg;
 
 	assert(conn);
-	assert(conn->app_fd >= 0 && conn->tsocks_fd);
+	assert(conn->app_fd >= 0 && conn->tsocks_fd > 0);
 
 	memset(buffer, 0, sizeof(buffer));
 	buf_len = sizeof(msg);
@@ -577,7 +577,7 @@ int socks5_recv_connect_reply(struct connection *conn)
 	} buffer;
 
 	assert(conn);
-	assert(conn->app_fd >= 0);
+	assert(conn->app_fd >= 0 && conn->tsocks_fd > 0);
 
 	ret = recv_reply_address_type(conn, &buffer.msg);
 	if (ret < 0) {
