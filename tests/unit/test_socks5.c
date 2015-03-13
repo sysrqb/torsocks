@@ -1007,7 +1007,7 @@ static void test_socks5_recv_resolve_reply_response_error(void)
 	ret = socks5_recv_resolve_reply(conn_stub, &dummy_ip_addr,
 			sizeof(dummy_ip_addr));
 
-	ok(ret == -ECONNABORTED, "socks5 resolve reply response error");
+	ok(ret == -ECONNREFUSED, "socks5 resolve reply response error");
 
 	connection_destroy(conn_stub);
 	socks5_init(NULL, NULL);

@@ -148,6 +148,81 @@ error:
 static ssize_t (*send_data)(int, const void *, size_t) = send_data_impl;
 
 /*
+ * Receive reply for the given connection connected to the SOCKS5 Tor
+ * port. Store data in msg, memory must be allocated by caller.
+ *
+ * Return the address type (SOCKS5_ATYP_IPV4, SOCKS5_ATYP_IPV6) on
+ * success else a negative errno value.
+ */
+
+static int recv_reply_address_type(struct connection *conn, struct socks5_reply *msg)
+{
+	int ret;
+	int ret_recv;
+
+	assert(conn);
+	assert(conn->app_fd >= 0);
+
+	ret_recv = recv_data(conn->app_fd, msg, sizeof(*msg));
+	if (ret_recv < 0) {
+		ret = ret_recv;
+		goto error;
+	}
+
+	if (msg->ver != SOCKS5_VERSION) {
+		ERR("Bad SOCKS5 version reply");
+		ret = -ECONNABORTED;
+		goto error;
+	}
+
+	switch (msg->rep) {
+	case SOCKS5_REPLY_SUCCESS:
+		DBG("Socks5 connection is successful.");
+		ret = msg->atyp;
+		break;
+	case SOCKS5_REPLY_FAIL:
+		ERR("General SOCKS server failure");
+		ret = -ECONNREFUSED;
+		break;
+	case SOCKS5_REPLY_DENY_RULE:
+		ERR("Connection not allowed by ruleset");
+		ret = -ECONNREFUSED;
+		break;
+	case SOCKS5_REPLY_NO_NET:
+		ERR("Network unreachable");
+		ret = -ENETUNREACH;
+		break;
+	case SOCKS5_REPLY_NO_HOST:
+		ERR("Host unreachable");
+		ret = -EHOSTUNREACH;
+		break;
+	case SOCKS5_REPLY_REFUSED:
+		ERR("Connection refused to Tor SOCKS");
+		ret = -ECONNREFUSED;
+		break;
+	case SOCKS5_REPLY_TTL_EXP:
+		ERR("Connection timed out");
+		ret = -ETIMEDOUT;
+		break;
+	case SOCKS5_REPLY_CMD_NOTSUP:
+		ERR("Command not supported");
+		ret = -ECONNREFUSED;
+		break;
+	case SOCKS5_REPLY_ADR_NOTSUP:
+		ERR("Address type not supported");
+		ret = -ECONNREFUSED;
+		break;
+	default:
+		ERR("Socks5 server replied an unknown code %d", msg->rep);
+		ret = -ECONNABORTED;
+		break;
+	}
+
+error:
+	return ret;
+}
+
+/*
  * Connect to socks5 server address from the global configuration.
  *
  * Return 0 on success or else a negative value.
@@ -171,7 +246,7 @@ int socks5_connect(struct connection *conn)
 		if (conn->tor_fd == -1) {
 			ERR("Cannot create IPv4 TCP socket: %s",
 				strerror(errno));
-			ret = errno;
+			ret = -errno;
 			goto error;
 		}
 		break;
@@ -182,7 +257,7 @@ int socks5_connect(struct connection *conn)
 		if (conn->tor_fd == -1) {
 			ERR("Cannot create IPv6 TCP socket: %s",
 				strerror(errno));
-			ret = errno;
+			ret = -errno;
 			goto error;
 		}
 		break;
@@ -191,9 +266,8 @@ int socks5_connect(struct connection *conn)
 		len = sizeof(tsocks_config.socks5_addr.u.sun);
 		conn->tor_fd = tsocks_libc_socket(AF_UNIX, SOCK_STREAM, 0);
 		if (conn->tor_fd == -1) {
-			ERR("Cannot create unix socket: %s",
-				strerror(errno));
-			ret = errno;
+			PERROR("Cannot create unix socket");
+			ret = -errno;
 			goto error;
 		}
 		break;
@@ -232,6 +306,7 @@ int socks5_connect(struct connection *conn)
 			ret = 0;
 		} else {
 			ret = -errno;
+			ERR("Failed connecting to Tor on %d", conn->tor_fd);
 			PERROR("socks5 libc connect");
 		}
 	}
@@ -262,7 +337,7 @@ int socks5_send_method(struct connection *conn, uint8_t type)
 	DBG("Socks5 sending method ver: %d, nmethods 0x%02x, methods 0x%02x",
 			msg.ver, msg.nmethods, msg.methods);
 
-	ret_send = send_data(conn->tor_fd, &msg, sizeof(msg));
+	ret_send = send_data(conn->app_fd, &msg, sizeof(msg));
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -287,7 +362,7 @@ int socks5_recv_method(struct connection *conn)
 	assert(conn);
 	assert(conn->tor_fd >= 0);
 
-	ret_recv = recv_data(conn->tor_fd, &msg, sizeof(msg));
+	ret_recv = recv_data(conn->app_fd, &msg, sizeof(msg));
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -329,7 +404,7 @@ int socks5_send_user_pass_request(struct connection *conn,
 		(SOCKS5_USERNAME_LEN + SOCKS5_PASSWORD_LEN)];
 
 	assert(conn);
-	assert(conn->tor_fd >= 0);
+	assert(conn->app_fd >= 0);
 	assert(user);
 	assert(pass);
 
@@ -356,7 +431,7 @@ int socks5_send_user_pass_request(struct connection *conn,
 	memcpy(buffer + data_len, pass, pass_len);
 	data_len += pass_len;
 
-	ret_send = send_data(conn->tor_fd, buffer, data_len);
+	ret_send = send_data(conn->app_fd, buffer, data_len);
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -384,9 +459,9 @@ int socks5_recv_user_pass_reply(struct connection *conn)
 	struct socks5_user_pass_reply msg;
 
 	assert(conn);
-	assert(conn->tor_fd >= 0);
+	assert(conn->app_fd >= 0);
 
-	ret_recv = recv_data(conn->tor_fd, &msg, sizeof(msg));
+	ret_recv = recv_data(conn->app_fd, &msg, sizeof(msg));
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -421,7 +496,7 @@ int socks5_send_connect_request(struct connection *conn)
 	struct socks5_request msg;
 
 	assert(conn);
-	assert(conn->tor_fd >= 0);
+	assert(conn->app_fd >= 0);
 
 	memset(buffer, 0, sizeof(buffer));
 	buf_len = sizeof(msg);
@@ -498,7 +573,7 @@ int socks5_send_connect_request(struct connection *conn)
 
 	DBG("Socks5 sending connect request to fd %d", conn->tor_fd);
 
-	ret_send = send_data(conn->tor_fd, &buffer, buf_len);
+	ret_send = send_data(conn->app_fd, &buffer, buf_len);
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -520,91 +595,48 @@ ATTR_HIDDEN
 int socks5_recv_connect_reply(struct connection *conn)
 {
 	int ret;
+	int addr_type;
 	ssize_t ret_recv;
-	unsigned char buffer[22];	/* Maximum size possible (with IPv6). */
-	struct socks5_reply msg;
 	size_t recv_len;
+	struct {
+		struct socks5_reply msg;
+		union {
+			struct socks5_request_ipv4 ipv4;
+			struct socks5_request_ipv6 ipv6;
+		} addr;
+	} buffer;
 
 	assert(conn);
-	assert(conn->tor_fd >= 0);
+	assert(conn->app_fd >= 0);
 
-	/* Beginning of the payload we are receiving. */
-	recv_len = sizeof(msg);
-	/* Len of BND.PORT */
-	recv_len += sizeof(uint16_t);
+	ret = recv_reply_address_type(conn, &buffer.msg);
+	if (ret < 0) {
+		goto error;
+	}
+	addr_type = ret;
 
-	switch (conn->dest_addr.domain) {
-	case CONNECTION_DOMAIN_NAME:
-		/*
-		 * Tor returns an IPv4 upon resolution. Same for .onion address.
-		 */
-	case CONNECTION_DOMAIN_INET:
-		recv_len+= 4;
+	switch (addr_type) {
+	case SOCKS5_ATYP_IPV4:
+		recv_len = sizeof(buffer.addr.ipv4);
 		break;
-	case CONNECTION_DOMAIN_INET6:
-		recv_len += 16;
+	case SOCKS5_ATYP_IPV6:
+		recv_len = sizeof(buffer.addr.ipv6);
 		break;
-	case CONNECTION_DOMAIN_UNIX:
-	case CONNECTION_DOMAIN_NOT_KNOWN:
-		ERR("Invalid destination socket domain.");
-		ret = -EBADF;
+	default:
+		ERR("Bad SOCKS5 atyp reply %d", buffer.msg.atyp);
+		ret = -EINVAL;
 		goto error;
 	}
 
-	ret_recv = recv_data(conn->tor_fd, buffer, recv_len);
+	ret_recv = recv_data(conn->app_fd, &buffer.addr, recv_len);
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
 	}
 
-	/* Copy the beginning of the reply so we can parse it easily. */
-	memcpy(&msg, buffer, sizeof(msg));
-
+	ret = 0;
 	DBG("Socks5 received connect reply - ver: %d, rep: 0x%02x, atype: 0x%02x",
-			msg.ver, msg.rep, msg.atyp);
-
-	switch (msg.rep) {
-	case SOCKS5_REPLY_SUCCESS:
-		DBG("Socks5 connection is successful.");
-		ret = 0;
-		break;
-	case SOCKS5_REPLY_FAIL:
-		ERR("General SOCKS server failure");
-		ret = -ECONNREFUSED;
-		break;
-	case SOCKS5_REPLY_DENY_RULE:
-		ERR("Connection not allowed by ruleset");
-		ret = -ECONNREFUSED;
-		break;
-	case SOCKS5_REPLY_NO_NET:
-		ERR("Network unreachable");
-		ret = -ENETUNREACH;
-		break;
-	case SOCKS5_REPLY_NO_HOST:
-		ERR("Host unreachable");
-		ret = -EHOSTUNREACH;
-		break;
-	case SOCKS5_REPLY_REFUSED:
-		ERR("Connection refused to Tor SOCKS");
-		ret = -ECONNREFUSED;
-		break;
-	case SOCKS5_REPLY_TTL_EXP:
-		ERR("Connection timed out");
-		ret = -ETIMEDOUT;
-		break;
-	case SOCKS5_REPLY_CMD_NOTSUP:
-		ERR("Command not supported");
-		ret = -ECONNREFUSED;
-		break;
-	case SOCKS5_REPLY_ADR_NOTSUP:
-		ERR("Address type not supported");
-		ret = -ECONNREFUSED;
-		break;
-	default:
-		ERR("Socks5 server replied an unknown code %d", msg.rep);
-		ret = -ECONNABORTED;
-		break;
-	}
+			buffer.msg.ver, buffer.msg.rep, buffer.msg.atyp);
 
 error:
 	return ret;
@@ -629,7 +661,7 @@ int socks5_send_resolve_request(const char *hostname, struct connection *conn)
 
 	assert(hostname);
 	assert(conn);
-	assert(conn->tor_fd >= 0);
+	assert(conn->app_fd >= 0);
 
 	memset(buffer, 0, sizeof(buffer));
 	memset(&req, 0, sizeof(req));
@@ -667,7 +699,7 @@ int socks5_send_resolve_request(const char *hostname, struct connection *conn)
 	memcpy(buffer + data_len, &req.port, sizeof(req.port));
 	data_len += sizeof(req.port);
 
-	ret_send = send_data(conn->tor_fd, &buffer, data_len);
+	ret_send = send_data(conn->app_fd, &buffer, data_len);
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -692,8 +724,10 @@ int socks5_recv_resolve_reply(struct connection *conn, void *addr,
 		size_t addrlen)
 {
 	int ret;
+	int addr_type;
 	size_t recv_len;
 	ssize_t ret_recv;
+
 	struct {
 		struct socks5_reply msg;
 		union {
@@ -702,41 +736,30 @@ int socks5_recv_resolve_reply(struct connection *conn, void *addr,
 		} addr;
 	} buffer;
 
-	assert(conn);
-	assert(conn->tor_fd >= 0);
 	assert(addr);
 
-	ret_recv = recv_data(conn->tor_fd, &buffer, sizeof(buffer.msg));
-	if (ret_recv < 0) {
-		ret = ret_recv;
+	ret = recv_reply_address_type(conn, &buffer.msg);
+	if (ret < 0) {
 		goto error;
 	}
+	addr_type = ret;
 
-	if (buffer.msg.ver != SOCKS5_VERSION) {
-		ERR("Bad SOCKS5 version reply");
-		ret = -ECONNABORTED;
-		goto error;
-	}
-
-	if (buffer.msg.rep != SOCKS5_REPLY_SUCCESS) {
-		ERR("Unable to resolve. Status reply: %d", buffer.msg.rep);
-		ret = -ECONNABORTED;
-		goto error;
-	}
-
-	if (buffer.msg.atyp == SOCKS5_ATYP_IPV4) {
+	switch (addr_type) {
+	case SOCKS5_ATYP_IPV4:
 		/* Size of a binary IPv4 in bytes. */
 		recv_len = sizeof(buffer.addr.ipv4);
-	} else if (buffer.msg.atyp == SOCKS5_ATYP_IPV6) {
+		break;
+	case SOCKS5_ATYP_IPV6:
 		/* Size of a binary IPv6 in bytes. */
 		recv_len = sizeof(buffer.addr.ipv6);
-	} else {
+		break;
+	default:
 		ERR("Bad SOCKS5 atyp reply %d", buffer.msg.atyp);
 		ret = -EINVAL;
 		goto error;
 	}
 
-	ret_recv = recv_data(conn->tor_fd, &buffer.addr, recv_len);
+	ret_recv = recv_data(conn->app_fd, &buffer.addr, recv_len);
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -775,7 +798,7 @@ int socks5_send_resolve_ptr_request(struct connection *conn, const void *ip, int
 	unsigned char buffer[sizeof(msg) + sizeof(req)];
 
 	assert(conn);
-	assert(conn->tor_fd >= 0);
+	assert(conn->app_fd >= 0);
 
 	DBG("[socks5] Resolve ptr request for ip %u", ip);
 
@@ -816,7 +839,7 @@ int socks5_send_resolve_ptr_request(struct connection *conn, const void *ip, int
 	memcpy(buffer + data_len, &req.port, sizeof(req.port));
 	data_len += sizeof(req.port);
 
-	ret_send = send_data(conn->tor_fd, &buffer, data_len);
+	ret_send = send_data(conn->app_fd, &buffer, data_len);
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -849,10 +872,10 @@ int socks5_recv_resolve_ptr_reply(struct connection *conn, char **_hostname)
 	} buffer;
 
 	assert(conn);
-	assert(conn->tor_fd >= 0);
+	assert(conn->app_fd >= 0);
 	assert(_hostname);
 
-	ret_recv = recv_data(conn->tor_fd, &buffer, sizeof(buffer));
+	ret_recv = recv_data(conn->app_fd, &buffer, sizeof(buffer));
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -877,7 +900,7 @@ int socks5_recv_resolve_ptr_reply(struct connection *conn, char **_hostname)
 			ret = -ENOMEM;
 			goto error;
 		}
-		ret_recv = recv_data(conn->tor_fd, hostname, buffer.len);
+		ret_recv = recv_data(conn->app_fd, hostname, buffer.len);
 		if (ret_recv < 0) {
 			ret = ret_recv;
 			goto error;
