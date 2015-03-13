@@ -131,6 +131,81 @@ error:
 static ssize_t (*send_data)(int, const void *, size_t) = send_data_impl;
 
 /*
+ * Receive reply for the given connection connected to the SOCKS5 Tor
+ * port. Store data in msg, memory must be allocated by caller.
+ *
+ * Return the address type (SOCKS5_ATYP_IPV4, SOCKS5_ATYP_IPV6) on
+ * success else a negative errno value.
+ */
+
+static int recv_reply_address_type(struct connection *conn, struct socks5_reply *msg)
+{
+	int ret;
+	int ret_recv;
+
+	assert(conn);
+	assert(conn->app_fd >= 0);
+
+	ret_recv = recv_data(conn->tor_fd, msg, sizeof(*msg));
+	if (ret_recv < 0) {
+		ret = ret_recv;
+		goto error;
+	}
+
+	if (msg->ver != SOCKS5_VERSION) {
+		ERR("Bad SOCKS5 version reply");
+		ret = -ECONNABORTED;
+		goto error;
+	}
+
+	switch (msg->rep) {
+	case SOCKS5_REPLY_SUCCESS:
+		DBG("Socks5 connection is successful.");
+		ret = msg->atyp;
+		break;
+	case SOCKS5_REPLY_FAIL:
+		ERR("General SOCKS server failure");
+		ret = -ECONNREFUSED;
+		break;
+	case SOCKS5_REPLY_DENY_RULE:
+		ERR("Connection not allowed by ruleset");
+		ret = -ECONNABORTED;
+		break;
+	case SOCKS5_REPLY_NO_NET:
+		ERR("Network unreachable");
+		ret = -ENETUNREACH;
+		break;
+	case SOCKS5_REPLY_NO_HOST:
+		ERR("Host unreachable");
+		ret = -EHOSTUNREACH;
+		break;
+	case SOCKS5_REPLY_REFUSED:
+		ERR("Connection refused to Tor SOCKS");
+		ret = -ECONNREFUSED;
+		break;
+	case SOCKS5_REPLY_TTL_EXP:
+		ERR("Connection timed out");
+		ret = -ETIMEDOUT;
+		break;
+	case SOCKS5_REPLY_CMD_NOTSUP:
+		ERR("Command not supported");
+		ret = -ECONNREFUSED;
+		break;
+	case SOCKS5_REPLY_ADR_NOTSUP:
+		ERR("Address type not supported");
+		ret = -ECONNREFUSED;
+		break;
+	default:
+		ERR("Socks5 server replied an unknown code %d", msg->rep);
+		ret = -ECONNABORTED;
+		break;
+	}
+
+error:
+	return ret;
+}
+
+/*
  * Connect to socks5 server address from the global configuration.
  *
  * Return 0 on success or else a negative value.
@@ -503,91 +578,48 @@ ATTR_HIDDEN
 int socks5_recv_connect_reply(struct connection *conn)
 {
 	int ret;
+	int addr_type;
 	ssize_t ret_recv;
-	unsigned char buffer[22];	/* Maximum size possible (with IPv6). */
-	struct socks5_reply msg;
 	size_t recv_len;
+	struct {
+		struct socks5_reply msg;
+		union {
+			struct socks5_request_ipv4 ipv4;
+			struct socks5_request_ipv6 ipv6;
+		} addr;
+	} buffer;
 
 	assert(conn);
 	assert(conn->tor_fd >= 0);
 
-	/* Beginning of the payload we are receiving. */
-	recv_len = sizeof(msg);
-	/* Len of BND.PORT */
-	recv_len += sizeof(uint16_t);
+	ret = recv_reply_address_type(conn, &buffer.msg);
+	if (ret < 0) {
+		goto error;
+	}
+	addr_type = ret;
 
-	switch (conn->dest_addr.domain) {
-	case CONNECTION_DOMAIN_NAME:
-		/*
-		 * Tor returns an IPv4 upon resolution. Same for .onion address.
-		 */
-	case CONNECTION_DOMAIN_INET:
-		recv_len+= 4;
+	switch (addr_type) {
+	case SOCKS5_ATYP_IPV4:
+		recv_len = sizeof(buffer.addr.ipv4);
 		break;
-	case CONNECTION_DOMAIN_INET6:
-		recv_len += 16;
+	case SOCKS5_ATYP_IPV6:
+		recv_len = sizeof(buffer.addr.ipv6);
 		break;
-	case CONNECTION_DOMAIN_UNIX:
-	case CONNECTION_DOMAIN_NOT_KNOWN:
-		ERR("Invalid destination socket domain.");
-		ret = -EBADF;
+	default:
+		ERR("Bad SOCKS5 atyp reply %d", buffer.msg.atyp);
+		ret = -EINVAL;
 		goto error;
 	}
 
-	ret_recv = recv_data(conn->tor_fd, buffer, recv_len);
+	ret_recv = recv_data(conn->tor_fd, &buffer.addr, recv_len);
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
 	}
 
-	/* Copy the beginning of the reply so we can parse it easily. */
-	memcpy(&msg, buffer, sizeof(msg));
-
+	ret = 0;
 	DBG("Socks5 received connect reply - ver: %d, rep: 0x%02x, atype: 0x%02x",
-			msg.ver, msg.rep, msg.atyp);
-
-	switch (msg.rep) {
-	case SOCKS5_REPLY_SUCCESS:
-		DBG("Socks5 connection is successful.");
-		ret = 0;
-		break;
-	case SOCKS5_REPLY_FAIL:
-		ERR("General SOCKS server failure");
-		ret = -ECONNREFUSED;
-		break;
-	case SOCKS5_REPLY_DENY_RULE:
-		ERR("Connection not allowed by ruleset");
-		ret = -ECONNABORTED;
-		break;
-	case SOCKS5_REPLY_NO_NET:
-		ERR("Network unreachable");
-		ret = -ENETUNREACH;
-		break;
-	case SOCKS5_REPLY_NO_HOST:
-		ERR("Host unreachable");
-		ret = -EHOSTUNREACH;
-		break;
-	case SOCKS5_REPLY_REFUSED:
-		ERR("Connection refused to Tor SOCKS");
-		ret = -ECONNREFUSED;
-		break;
-	case SOCKS5_REPLY_TTL_EXP:
-		ERR("Connection timed out");
-		ret = -ETIMEDOUT;
-		break;
-	case SOCKS5_REPLY_CMD_NOTSUP:
-		ERR("Command not supported");
-		ret = -ECONNREFUSED;
-		break;
-	case SOCKS5_REPLY_ADR_NOTSUP:
-		ERR("Address type not supported");
-		ret = -ECONNREFUSED;
-		break;
-	default:
-		ERR("Socks5 server replied an unknown code %d", msg.rep);
-		ret = -ECONNABORTED;
-		break;
-	}
+			buffer.msg.ver, buffer.msg.rep, buffer.msg.atyp);
 
 error:
 	return ret;
@@ -675,8 +707,10 @@ int socks5_recv_resolve_reply(struct connection *conn, void *addr,
 		size_t addrlen)
 {
 	int ret;
+	int addr_type;
 	size_t recv_len;
 	ssize_t ret_recv;
+
 	struct {
 		struct socks5_reply msg;
 		union {
@@ -685,35 +719,24 @@ int socks5_recv_resolve_reply(struct connection *conn, void *addr,
 		} addr;
 	} buffer;
 
-	assert(conn);
-	assert(conn->tor_fd >= 0);
 	assert(addr);
 
-	ret_recv = recv_data(conn->tor_fd, &buffer, sizeof(buffer.msg));
-	if (ret_recv < 0) {
-		ret = ret_recv;
+	ret = recv_reply_address_type(conn, &buffer.msg);
+	if (ret < 0) {
 		goto error;
 	}
+	addr_type = ret;
 
-	if (buffer.msg.ver != SOCKS5_VERSION) {
-		ERR("Bad SOCKS5 version reply");
-		ret = -ECONNABORTED;
-		goto error;
-	}
-
-	if (buffer.msg.rep != SOCKS5_REPLY_SUCCESS) {
-		ERR("Unable to resolve. Status reply: %d", buffer.msg.rep);
-		ret = -ECONNABORTED;
-		goto error;
-	}
-
-	if (buffer.msg.atyp == SOCKS5_ATYP_IPV4) {
+	switch (addr_type) {
+	case SOCKS5_ATYP_IPV4:
 		/* Size of a binary IPv4 in bytes. */
 		recv_len = sizeof(buffer.addr.ipv4);
-	} else if (buffer.msg.atyp == SOCKS5_ATYP_IPV6) {
+		break;
+	case SOCKS5_ATYP_IPV6:
 		/* Size of a binary IPv6 in bytes. */
 		recv_len = sizeof(buffer.addr.ipv6);
-	} else {
+		break;
+	default:
 		ERR("Bad SOCKS5 atyp reply %d", buffer.msg.atyp);
 		ret = -EINVAL;
 		goto error;
