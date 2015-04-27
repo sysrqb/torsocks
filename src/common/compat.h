@@ -109,6 +109,7 @@ long tsocks_get_hostname_max_len();
 #endif
 #ifndef __NR_accept4
 #define __NR_accept4 -13
+#endif
 #ifndef __NR_open
 #define __NR_open -14
 #endif
