@@ -199,6 +199,9 @@ ATTR_HIDDEN
 struct connection *connection_create(int fd, const struct sockaddr *dest)
 {
 	struct connection *conn = NULL;
+	const struct sockaddr_in *in4;
+	const struct sockaddr_in6 *in6;
+	char dotted[128];
 
 	conn = zmalloc(sizeof(*conn));
 	if (!conn) {
@@ -212,11 +215,17 @@ struct connection *connection_create(int fd, const struct sockaddr *dest)
 			conn->dest_addr.domain = CONNECTION_DOMAIN_INET;
 			memcpy(&conn->dest_addr.u.sin, dest,
 					sizeof(conn->dest_addr.u.sin));
+			in4 = &conn->dest_addr.u.sin;
+			inet_ntop(dest->sa_family, &in4->sin_addr, dotted, 128);
+			DBG("Copied INET addr %#x (%s)", in4->sin_addr.s_addr, dotted);
 			break;
 		case AF_INET6:
 			conn->dest_addr.domain = CONNECTION_DOMAIN_INET6;
 			memcpy(&conn->dest_addr.u.sin6, dest,
 					sizeof(conn->dest_addr.u.sin6));
+			in6 = &conn->dest_addr.u.sin6;
+			inet_ntop(dest->sa_family, &in6->sin6_addr, dotted, 128);
+			DBG("Copied INET6 addr %#x (%s)", in6->sin6_addr.s6_addr, dotted);
 			break;
 		default:
 			ERR("Connection domain unknown %d", dest->sa_family);

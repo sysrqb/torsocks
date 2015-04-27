@@ -30,18 +30,23 @@ LIBC_CLOSE_RET_TYPE tsocks_close(LIBC_CLOSE_SIG)
 {
 	struct connection *conn;
 
-	DBG("Close catched for fd %d", fd);
+	DBG("[close] Close caught for fd %d", fd);
 
 	connection_registry_lock();
+	DBG("[close] connection_registry locked");
 	conn = connection_find(fd);
+	DBG("[close] Found connection %#x", conn);
 	if (conn) {
+		DBG("[close] Closing %d", conn->tsocks_fd);
 		tsocks_libc_close(conn->tsocks_fd);
 		/*
 		 * Remove from the registry so it's not visible anymore and thus using
 		 * it without lock.
 		 */
+		DBG("[close] Removing connection %#x from registry", conn);
 		connection_remove(conn);
 	}
+	DBG("[close] connection_registry unlocked");
 	connection_registry_unlock();
 
 	/*
@@ -49,11 +54,12 @@ LIBC_CLOSE_RET_TYPE tsocks_close(LIBC_CLOSE_SIG)
 	 * connection pointer is destroyed.
 	 */
 	if (conn) {
-		DBG("Close connection putting back ref");
+		DBG("[close] Close connection putting back ref");
 		connection_put_ref(conn);
 	}
 
 	/* Return the original libc close. */
+	DBG("[close] Closing fd %d", fd);
 	return tsocks_libc_close(fd);
 }
 

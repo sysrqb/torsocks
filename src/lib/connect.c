@@ -25,6 +25,7 @@
 #include <common/utils.h>
 
 #include "torsocks.h"
+#include <arpa/inet.h>
 
 /* connect(2) */
 TSOCKS_LIBC_DECL(connect, LIBC_CONNECT_RET_TYPE, LIBC_CONNECT_SIG)
@@ -60,7 +61,7 @@ static int validate_socket(int sockfd, const struct sockaddr *addr)
 	 * to allow AF_UNIX/_LOCAL socket to work with torsocks.
 	 */
 	if (addr->sa_family != AF_INET && addr->sa_family != AF_INET6) {
-		DBG("[conect] Connection is not IPv4/v6. Ignoring.");
+		DBG("[connect] Connection is not IPv4/v6. Ignoring.");
 		/* Ask the call to use the libc connect. */
 		goto libc_call;
 	}
@@ -108,8 +109,11 @@ LIBC_CONNECT_RET_TYPE tsocks_connect(LIBC_CONNECT_SIG)
 	int ret, ret_errno;
 	struct connection *new_conn;
 	struct onion_entry *on_entry;
+	char dottedaddr[128], *dotted_ret;
 
-	DBG("Connect catched on fd %d", sockfd);
+	dotted_ret = inet_ntop(addr->sa_family, &((const struct sockaddr_in *)addr)->sin_addr, dottedaddr, 128);
+
+	DBG("Connect caught for %#x (%s) on fd %d", addr, dottedaddr, sockfd);
 
 	/*
 	 * Validate socket values in order to see if we can handle this connect
