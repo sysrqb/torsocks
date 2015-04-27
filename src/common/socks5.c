@@ -279,6 +279,7 @@ int socks5_connect(struct connection *conn)
 			goto error;
 		}
 		ret = -errno;
+		ERR("Failed connecting to Tor");
 		PERROR("socks5 libc connect");
 	}
 
