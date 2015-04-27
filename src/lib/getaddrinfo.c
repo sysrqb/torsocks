@@ -19,6 +19,10 @@
 
 #include <arpa/inet.h>
 #include <assert.h>
+#include <unistd.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <common/log.h>
 
@@ -40,17 +44,45 @@ LIBC_GETADDRINFO_RET_TYPE tsocks_getaddrinfo(LIBC_GETADDRINFO_SIG)
 	char *ip_str, ipv4[INET_ADDRSTRLEN], ipv6[INET6_ADDRSTRLEN];
 	socklen_t ip_str_size;
 	const char *tmp_node;
+	char hostname[HOST_NAME_MAX];
 
 	DBG("[getaddrinfo] Requesting %s hostname", node);
 
+	tmp_node = node;
 	if (!node) {
 		/*
 		 * As stated in the man page, if node is NULL, the libc call will
 		 * return a valid socket address but NO external DNS resolution is
 		 * possible since there is no host name to resolve.
 		 */
-		tmp_node = node;
 		goto libc_call;
+	}
+
+	/*
+	 * Be very careful about resolving out hostname via the Internet.
+	 * In genernal, this is not what we want. Let's try to catch this
+	 * and force a lookup for a loopback address below.
+	 */
+	if (gethostname(hostname, HOST_NAME_MAX) == 0) {
+		int hostnamelen = strlen(hostname);
+		int nodelen = strlen(node);
+		if (memcmp(node, hostname, hostnamelen > nodelen ? nodelen : hostnamelen)) {
+			char *domainsep;
+			domainsep = strstr(hostname, ".");
+			if (domainsep != NULL) {
+				domainsep = '\0';
+				int hostnamelen = strlen(hostname);
+				if (memcmp(node, hostname, hostnamelen > nodelen ? nodelen : hostnamelen) == 0) {
+					DBG("[getaddrinfo] Caught lookup for local hostname (%s). Using loopback instead.", node);
+					tmp_node = strdup("127.0.0.1");
+				}
+			}
+		} else {
+			DBG("[getaddrinfo] Caught lookup for local hostname (%s). Using loopback instead.", node);
+			tmp_node = strdup("127.0.0.1");
+		}
+	} else {
+		/* lookup with 2 uname() */
 	}
 
 	/*
@@ -65,7 +97,6 @@ LIBC_GETADDRINFO_RET_TYPE tsocks_getaddrinfo(LIBC_GETADDRINFO_SIG)
 	 * This means that for sure the ai_family will be treated as AF_UNSPEC.
 	 */
 	if (!hints) {
-		tmp_node = node;
 		goto libc_call;
 	}
 
@@ -87,10 +118,10 @@ LIBC_GETADDRINFO_RET_TYPE tsocks_getaddrinfo(LIBC_GETADDRINFO_SIG)
 		break;
 	}
 
-	ret = inet_pton(af, node, addr);
+	ret = inet_pton(af, tmp_node, addr);
 	if (ret == 0) {
 		/* The node most probably is a DNS name. */
-		ret = tsocks_tor_resolve(af, node, addr);
+		ret = tsocks_tor_resolve(af, tmp_node, addr);
 		if (ret < 0) {
 			ret = EAI_FAIL;
 			goto error;
@@ -100,7 +131,6 @@ LIBC_GETADDRINFO_RET_TYPE tsocks_getaddrinfo(LIBC_GETADDRINFO_SIG)
 		tmp_node = ip_str;
 		DBG("[getaddrinfo] Node %s resolved to %s", node,tmp_node);
 	} else {
-		tmp_node = node;
 		DBG("[getaddrinfo] Node %s will be passed to the libc call", tmp_node);
 	}
 
@@ -109,10 +139,14 @@ libc_call:
 	if (ret) {
 		goto error;
 	}
+	if (tmp_node != node && tmp_node != ip_str)
+		free((void *)tmp_node);
 
 	return 0;
 
 error:
+	if (tmp_node != node && tmp_node != ip_str)
+		free((void *)tmp_node);
 	return ret;
 }
 
