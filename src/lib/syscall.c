@@ -27,6 +27,20 @@
 TSOCKS_LIBC_DECL(syscall, LIBC_SYSCALL_RET_TYPE, LIBC_SYSCALL_SIG)
 
 /*
+ * Handle open syscall to be called with tsocks call.
+ */
+static LIBC_OPEN_RET_TYPE handle_open(va_list args)
+{
+	char *file;
+	int flags;
+
+	file = va_arg(args, char *);
+	flags = va_arg(args, int);
+
+	return tsocks_open(file, flags, args);
+}
+
+/*
  * Handle close syscall to be called with tsocks call.
  */
 static LIBC_CLOSE_RET_TYPE handle_close(va_list args)
@@ -178,6 +192,8 @@ LIBC_SYSCALL_RET_TYPE tsocks_syscall(long int number, va_list args)
 	case TSOCKS_NR_CONNECT:
 		ret = handle_connect(args);
 		break;
+	case TSOCKS_NR_OPEN:
+		ret = handle_open(args);
 	case TSOCKS_NR_CLOSE:
 		ret = handle_close(args);
 		break;
