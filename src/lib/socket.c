@@ -29,6 +29,8 @@ TSOCKS_LIBC_DECL(socket, LIBC_SOCKET_RET_TYPE, LIBC_SOCKET_SIG)
  */
 LIBC_SOCKET_RET_TYPE tsocks_socket(LIBC_SOCKET_SIG)
 {
+	int fd;
+
 	DBG("[socket] Creating socket with domain %d, type %d and protocol %d",
 			domain, type, protocol);
 
@@ -74,7 +76,9 @@ LIBC_SOCKET_RET_TYPE tsocks_socket(LIBC_SOCKET_SIG)
 
 end:
 	/* Stream socket for INET/INET6 is good so open it. */
-	return tsocks_libc_socket(domain, type, protocol);
+	fd = tsocks_libc_socket(domain, type, protocol);
+	DBG("[socket] Created socket fd %d", fd);
+	return fd;
 }
 
 /*

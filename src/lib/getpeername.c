@@ -34,6 +34,7 @@ LIBC_GETPEERNAME_RET_TYPE tsocks_getpeername(LIBC_GETPEERNAME_SIG)
 	int ret = 0;
 	struct connection *conn;
 	socklen_t sz = 0;
+	char dotted[128];
 
 	DBG("[getpeername] Requesting address on socket %d", sockfd);
 
@@ -41,12 +42,27 @@ LIBC_GETPEERNAME_RET_TYPE tsocks_getpeername(LIBC_GETPEERNAME_SIG)
 	conn = connection_find(sockfd);
 	if (!conn) {
 		connection_registry_unlock();
+		DBG("Connection not in table. Jumping to libc resolution.");
 		goto libc;
 	}
+	DBG("Found connection in table. Resolving internally.");
 
 	if (!addrlen || !addr) {
 		/* Bad address. */
+		DBG("addrlen (%#x) or addr (%#x) invalid", addrlen, addr);
 		errno = EFAULT;
+		ret = -1;
+		goto end;
+	}
+
+	/*
+	 * Extra check for addrlen since we are about to copy the connection
+	 * content into the given address.
+	 */
+	if (*addrlen > sizeof(struct sockaddr)) {
+		/* Ref to the manpage for the returned value here. */
+		DBG("addrlen (%#x) invalid (%d)", addrlen, *addrlen);
+		errno = EINVAL;
 		ret = -1;
 		goto end;
 	}
@@ -67,11 +83,19 @@ LIBC_GETPEERNAME_RET_TYPE tsocks_getpeername(LIBC_GETPEERNAME_SIG)
 		sz = min(sizeof(conn->dest_addr.u.sin), *addrlen);
 		memcpy(addr, (const struct sockaddr *) &conn->dest_addr.u.sin,
 				sz);
+		inet_ntop(conn->dest_addr.u.sin.sin_family, &conn->dest_addr.u.sin.sin_addr,
+			  dotted, 128);
+		DBG("Returning peername of INET addr %#x (%s)",
+		    conn->dest_addr.u.sin.sin_addr.s_addr, dotted);
 		break;
 	case CONNECTION_DOMAIN_INET6:
 		sz = min(sizeof(conn->dest_addr.u.sin6), *addrlen);
 		memcpy(addr, (const struct sockaddr *) &conn->dest_addr.u.sin6,
 				sz);
+		inet_ntop(conn->dest_addr.u.sin6.sin6_family, &conn->dest_addr.u.sin6.sin6_addr,
+			  dotted, 128);
+		DBG("Returning peername of INET6 addr %#x (%s)",
+		    conn->dest_addr.u.sin6.sin6_addr.s6_addr, dotted);
 		break;
 	case CONNECTION_DOMAIN_NOT_KNOWN:
 	case CONNECTION_DOMAIN_UNIX:

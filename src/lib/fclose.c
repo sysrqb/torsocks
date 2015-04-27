@@ -45,15 +45,20 @@ LIBC_FCLOSE_RET_TYPE tsocks_fclose(LIBC_FCLOSE_SIG)
 	DBG("[fclose] Close caught for fd %d", fd);
 
 	connection_registry_lock();
+	DBG("[fclose] connection_registry locked");
 	conn = connection_find(fd);
+	DBG("[fclose] Found connection %#x", conn);
 	if (conn) {
+		DBG("[fclose] Closing %d", conn->tor_fd);
 		tsocks_libc_close(conn->tor_fd);
 		/*
 		 * Remove from the registry so it's not visible anymore and thus using
 		 * it without lock.
 		 */
+		DBG("[fclose] Removing connection %#x from registry", conn);
 		connection_remove(conn);
 	}
+	DBG("[fclose] connection_registry unlocked");
 	connection_registry_unlock();
 
 	/*
@@ -66,9 +71,11 @@ LIBC_FCLOSE_RET_TYPE tsocks_fclose(LIBC_FCLOSE_SIG)
 	}
 
 	/* Return the original libc fclose. */
+	DBG("[fclose] Closing stream %#x", fp);
 	return tsocks_libc_fclose(fp);
 
 error:
+	DBG("[fclose] Got error %s", strerror(errno));
 	return -1;
 }
 
