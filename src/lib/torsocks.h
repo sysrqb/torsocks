@@ -93,6 +93,33 @@
 #define LIBC_SHUTDOWN_SIG int sockfd, int how
 #define LIBC_SHUTDOWN_ARGS sockfd, how
 
+/* fopen(3) */
+#include <stdio.h>
+
+#define LIBC_FOPEN_NAME fopen
+#define LIBC_FOPEN_NAME_STR XSTR(LIBC_FOPEN_NAME)
+#define LIBC_FOPEN_RET_TYPE FILE *
+#define LIBC_FOPEN_SIG const char *path, const char *mode
+#define LIBC_FOPEN_ARGS path, mode
+
+/* fdopen(3) */
+#include <stdio.h>
+
+#define LIBC_FDOPEN_NAME fdopen
+#define LIBC_FDOPEN_NAME_STR XSTR(LIBC_FDOPEN_NAME)
+#define LIBC_FDOPEN_RET_TYPE FILE *
+#define LIBC_FDOPEN_SIG int fd, const char *mode
+#define LIBC_FDOPEN_ARGS fd, mode
+
+/* freopen(3) */
+#include <stdio.h>
+
+#define LIBC_FREOPEN_NAME freopen
+#define LIBC_FREOPEN_NAME_STR XSTR(LIBC_FREOPEN_NAME)
+#define LIBC_FREOPEN_RET_TYPE FILE *
+#define LIBC_FREOPEN_SIG const char *path, const char *mode, FILE *stream
+#define LIBC_FREOPEN_ARGS path, mode, stream
+
 /* fclose(3) */
 #include <stdio.h>
 
@@ -475,6 +502,24 @@ extern TSOCKS_LIBC_DECL(shutdown, LIBC_SHUTDOWN_RET_TYPE, LIBC_SHUTDOWN_SIG)
 TSOCKS_DECL(shutdown, LIBC_SHUTDOWN_RET_TYPE, LIBC_SHUTDOWN_SIG)
 #define LIBC_SHUTDOWN_DECL \
 		LIBC_SHUTDOWN_RET_TYPE LIBC_SHUTDOWN_NAME(LIBC_SHUTDOWN_SIG)
+
+/* fopen(3) */
+extern TSOCKS_LIBC_DECL(fopen, LIBC_FOPEN_RET_TYPE, LIBC_FOPEN_SIG)
+TSOCKS_DECL(fopen, LIBC_FOPEN_RET_TYPE, LIBC_FOPEN_SIG)
+#define LIBC_FOPEN_DECL \
+		LIBC_FOPEN_RET_TYPE LIBC_FOPEN_NAME(LIBC_FOPEN_SIG)
+
+/* fdopen(3) */
+extern TSOCKS_LIBC_DECL(fdopen, LIBC_FDOPEN_RET_TYPE, LIBC_FDOPEN_SIG)
+TSOCKS_DECL(fdopen, LIBC_FDOPEN_RET_TYPE, LIBC_FDOPEN_SIG)
+#define LIBC_FDOPEN_DECL \
+		LIBC_FDOPEN_RET_TYPE LIBC_FDOPEN_NAME(LIBC_FDOPEN_SIG)
+
+/* freopen(3) */
+extern TSOCKS_LIBC_DECL(freopen, LIBC_FREOPEN_RET_TYPE, LIBC_FREOPEN_SIG)
+TSOCKS_DECL(freopen, LIBC_FREOPEN_RET_TYPE, LIBC_FREOPEN_SIG)
+#define LIBC_FREOPEN_DECL \
+		LIBC_FREOPEN_RET_TYPE LIBC_FREOPEN_NAME(LIBC_FREOPEN_SIG)
 
 /* fclose(3) */
 extern TSOCKS_LIBC_DECL(fclose, LIBC_FCLOSE_RET_TYPE, LIBC_FCLOSE_SIG)
