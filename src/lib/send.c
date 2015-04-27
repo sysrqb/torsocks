@@ -60,6 +60,11 @@ LIBC_SEND_RET_TYPE tsocks_send(LIBC_SEND_SIG)
 	struct connection *conn;
 
 	conn = connection_find(sockfd);
+	if (conn == NULL) {
+		ERR("[send] Connection lookup failed for fd %d", sockfd);
+		errno = EBADF;
+		return -1;
+	}
 	sockfd = conn->tsocks_fd;
 	return tsocks_libc_send(LIBC_SEND_ARGS);
 }
