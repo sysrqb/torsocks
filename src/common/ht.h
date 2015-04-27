@@ -129,7 +129,7 @@ ht_string_hash(const char *s)
        (x) != NULL;                               \
        (x) = HT_NEXT(name, head, x))
 
-#define HT_PROTOTYPE(name, type, field, hashfn, eqfn)                   \
+#define HT_PROTOTYPE(name, type, field, hashfn, eqfn, key)              \
   int name##_HT_GROW(struct name *ht, unsigned min_capacity);           \
   void name##_HT_CLEAR(struct name *ht);                                \
   int name##_HT_REP_IS_BAD_(const struct name *ht);                     \
@@ -151,6 +151,11 @@ ht_string_hash(const char *s)
       return NULL;                                                      \
     p = &HT_BUCKET_(head, field, elm, hashfn);                          \
     while (*p) {                                                        \
+      if (*p < 0xffffff) {                                              \
+        DBG("[ht] Reached nearly NULL value (%#x) during HT lookup "    \
+            "for %s", *p, elm->key);                                    \
+        return NULL;                                                    \
+      }                                                                 \
       if (eqfn(*p, elm))                                                \
         return p;                                                       \
       p = &(*p)->field.hte_next;                                        \
@@ -216,6 +221,8 @@ ht_string_hash(const char *s)
       return NULL;                                                      \
     r = *p;                                                             \
     *p = r->field.hte_next;                                             \
+    DBG("[ht] Removing elm %d at %#x from bucket, next elm at '%#x'",   \
+        r->key, r, *p);                                                 \
     r->field.hte_next = NULL;                                           \
     --head->hth_n_entries;                                              \
     return r;                                                           \
