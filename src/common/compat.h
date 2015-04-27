@@ -111,10 +111,13 @@ void tsocks_once(tsocks_once_t *o, void (*init_routine)(void));
 #endif
 #ifndef __NR_accept4
 #define __NR_accept4 -13
+#ifndef __NR_open
+#define __NR_open -14
 #endif
 
 #define TSOCKS_NR_SOCKET    __NR_socket
 #define TSOCKS_NR_CONNECT   __NR_connect
+#define TSOCKS_NR_OPEN      __NR_open
 #define TSOCKS_NR_CLOSE     __NR_close
 #define TSOCKS_NR_MMAP      __NR_mmap
 #define TSOCKS_NR_MUNMAP    __NR_munmap
@@ -188,6 +191,7 @@ void tsocks_once(tsocks_once_t *o, void (*init_routine)(void));
 
 #define TSOCKS_NR_SOCKET    SYS_socket
 #define TSOCKS_NR_CONNECT   SYS_connect
+#define TSOCKS_NR_OPEN      SYS_open
 #define TSOCKS_NR_CLOSE     SYS_close
 #define TSOCKS_NR_MMAP      SYS_mmap
 #define TSOCKS_NR_MUNMAP    SYS_munmap

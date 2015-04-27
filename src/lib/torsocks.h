@@ -65,6 +65,16 @@
 #define LIBC_SOCKETPAIR_ARGS \
 	domain, type, protocol, sv
 
+/* open(2) */
+#include <fcntl.h>
+#include <sys/stat.h>
+
+#define LIBC_OPEN_NAME open
+#define LIBC_OPEN_NAME_STR XSTR(LIBC_OPEN_NAME)
+#define LIBC_OPEN_RET_TYPE int
+#define LIBC_OPEN_SIG const char *file, int oflag, ...
+#define LIBC_OPEN_ARGS file, oflag, mode
+
 /* close(2) */
 #include <unistd.h>
 
@@ -447,6 +457,12 @@ extern TSOCKS_LIBC_DECL(__syscall, LIBC___SYSCALL_RET_TYPE, LIBC___SYSCALL_SIG)
 #define LIBC___SYSCALL_DECL \
 		LIBC___SYSCALL_RET_TYPE LIBC___SYSCALL_NAME(LIBC___SYSCALL_SIG)
 #endif /* __FreeBSD__, __NetBSD__ */
+
+/* open(2) */
+extern TSOCKS_LIBC_DECL(open, LIBC_OPEN_RET_TYPE, LIBC_OPEN_SIG)
+TSOCKS_DECL(open, LIBC_OPEN_RET_TYPE, LIBC_OPEN_SIG)
+#define LIBC_OPEN_DECL \
+		LIBC_OPEN_RET_TYPE LIBC_OPEN_NAME(LIBC_OPEN_SIG)
 
 /* close(2) */
 extern TSOCKS_LIBC_DECL(close, LIBC_CLOSE_RET_TYPE, LIBC_CLOSE_SIG)
