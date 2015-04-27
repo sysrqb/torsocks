@@ -85,7 +85,7 @@ static inline unsigned int conn_hash_fct(struct connection *c)
  */
 static HT_HEAD(connection_registry, connection) connection_registry_root;
 HT_PROTOTYPE(connection_registry, connection, node, conn_hash_fct,
-		conn_equal_fct);
+		conn_equal_fct, app_fd);
 HT_GENERATE(connection_registry, connection, node, conn_hash_fct,
 		conn_equal_fct, 0.5, malloc, realloc, free);
 
