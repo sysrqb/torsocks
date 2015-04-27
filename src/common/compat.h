@@ -111,6 +111,7 @@ void tsocks_once(tsocks_once_t *o, void (*init_routine)(void));
 #endif
 #ifndef __NR_accept4
 #define __NR_accept4 -13
+#endif
 #ifndef __NR_open
 #define __NR_open -14
 #endif
