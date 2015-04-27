@@ -58,7 +58,7 @@ LIBC_GETPEERNAME_RET_TYPE tsocks_getpeername(LIBC_GETPEERNAME_SIG)
 	 * Extra check for addrlen since we are about to copy the connection
 	 * content into the given address.
 	 */
-	if (*addrlen > sizeof(struct sockaddr)) {
+	if (*addrlen < 0) {
 		/* Ref to the manpage for the returned value here. */
 		DBG("addrlen (%#x) invalid (%d)", addrlen, *addrlen);
 		errno = EINVAL;
