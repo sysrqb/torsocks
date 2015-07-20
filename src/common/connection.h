@@ -63,7 +63,7 @@ struct connection {
 	int app_fd;
 
 	/* Socket fd created by torsocks for connecting to Tor */
-        int tsocks_fd;
+	int tsocks_fd;
 
 	/* Remote destination that passes through Tor. */
 	struct connection_addr dest_addr;

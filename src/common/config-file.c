@@ -151,16 +151,16 @@ static enum connection_domain address_type(const char *addr) {
 	int ret;
 
 	ret = utils_is_address_ipv4(addr);
-	if (ret == 1 )
-            return CONNECTION_DOMAIN_INET;
+	if (ret == 1)
+		return CONNECTION_DOMAIN_INET;
 
 	ret = utils_is_address_ipv6(addr);
-	if (ret == 1 )
-            return CONNECTION_DOMAIN_INET6;
+	if (ret == 1)
+		return CONNECTION_DOMAIN_INET6;
 
 	ret = utils_is_address_unix_domain(addr);
-	if (ret == 1 )
-            return CONNECTION_DOMAIN_UNIX;
+	if (ret == 1)
+		return CONNECTION_DOMAIN_UNIX;
 
 	return CONNECTION_DOMAIN_UNKNOWN;
 }
@@ -173,11 +173,11 @@ static enum connection_domain address_type(const char *addr) {
  */
 static int set_tor_address(const char *addr, struct configuration *config)
 {
-        int ret = -1;
+	int ret = -1;
 	assert(addr);
 	assert(config);
 
-        enum connection_domain domain = address_type(addr);
+	enum connection_domain domain = address_type(addr);
 	if (domain == CONNECTION_DOMAIN_UNKNOWN) {
 		ERR("Config file unknown tor address: %s", addr);
 		goto error;

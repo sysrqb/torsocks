@@ -229,7 +229,7 @@ int socks5_connect(struct connection *conn)
 	case CONNECTION_DOMAIN_INET:
 		socks5_addr = (struct sockaddr *) &tsocks_config.socks5_addr.u.sin;
 		len = sizeof(tsocks_config.socks5_addr.u.sin);
-        	conn->tsocks_fd = tsocks_libc_socket(AF_INET, SOCK_STREAM, 0);
+		conn->tsocks_fd = tsocks_libc_socket(AF_INET, SOCK_STREAM, 0);
 		if (conn->tsocks_fd == -1) {
 			ERR("Cannot create IPv4 TCP socket: %s",
 				strerror(errno));
@@ -240,7 +240,7 @@ int socks5_connect(struct connection *conn)
 	case CONNECTION_DOMAIN_INET6:
 		socks5_addr = (struct sockaddr *) &tsocks_config.socks5_addr.u.sin6;
 		len = sizeof(tsocks_config.socks5_addr.u.sin6);
-        	conn->tsocks_fd = tsocks_libc_socket(AF_INET6, SOCK_STREAM, 0);
+		conn->tsocks_fd = tsocks_libc_socket(AF_INET6, SOCK_STREAM, 0);
 		if (conn->tsocks_fd == -1) {
 			ERR("Cannot create IPv6 TCP socket: %s",
 				strerror(errno));
@@ -251,7 +251,7 @@ int socks5_connect(struct connection *conn)
 	case CONNECTION_DOMAIN_UNIX:
 		socks5_addr = (struct sockaddr *) &tsocks_config.socks5_addr.u.sun;
 		len = sizeof(tsocks_config.socks5_addr.u.sun);
-        	conn->tsocks_fd = tsocks_libc_socket(AF_UNIX, SOCK_STREAM, 0);
+		conn->tsocks_fd = tsocks_libc_socket(AF_UNIX, SOCK_STREAM, 0);
 		if (conn->tsocks_fd == -1) {
 			ERR("Cannot create unix socket: %s",
 				strerror(errno));

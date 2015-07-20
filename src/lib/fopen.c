@@ -35,7 +35,7 @@ LIBC_FDOPEN_RET_TYPE tsocks_fdopen(LIBC_FDOPEN_SIG)
 {
 	FILE *file;
 	DBG("[fdopen] Open caught for fd %d, '%s'", fd, mode);
-        
+
 	file = tsocks_libc_fdopen(LIBC_FDOPEN_ARGS);
 	if (file != NULL) {
 		DBG("[fdopen] Open returned FILE stream %#x", file);
@@ -54,7 +54,7 @@ LIBC_FREOPEN_RET_TYPE tsocks_freopen(LIBC_FREOPEN_SIG)
 
 	DBG("[freopen] Reopen caught on file '%s', reopening on %x",
 	    path, stream);
-        
+
 	file = tsocks_libc_freopen(LIBC_FREOPEN_ARGS);
 	if (file != NULL) {
 		fd = fileno(file);
