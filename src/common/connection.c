@@ -235,6 +235,59 @@ error:
 }
 
 /*
+ * Clone (deep copy) an existing connection.
+ *
+ * Deep copy an existing connection and return a newly allocated connection
+ * object or else NULL.
+ */
+#if 0
+ATTR_HIDDEN
+struct connection *connection_clone(const struct connection *conn)
+{
+	struct connection *new_conn = NULL;
+
+	if (!conn)
+		return NULL;
+	conn = zmalloc(sizeof(*new_conn));
+	if (!new_conn) {
+		PERROR("zmalloc connection");
+		goto error;
+	}
+
+	memcpy(conn, new_conn, sizeof(conn->app_fd) +
+			       sizeof(conn->tsocks_fd) +
+			       sizeof(conn->dest_addr) +
+			       sizeof(conn->tsocks_addr));
+
+	switch (conn->dest_addr.domain) {
+	case CONNECTION_DOMAIN_NAME:
+		new_conn->dest_addr.domain = CONNECTION_DOMAIN_NAME;
+		new_conn->dest_addr.hostname.port = conn->dest_addr.hostname.port;
+		new_conn->dest_addr.hostname.addr = strdup(conn->dest_addr.hostname.addr);
+		if (!new_conn->dest_addr.hostname.addr) {
+			ret_errno = ENOMEM;
+			goto error_free;
+		}
+		break;
+	case CONNECTION_DOMAIN_INET:
+		new_conn->dest_addr.domain = CONNECTION_DOMAIN_INET;
+		memcpy(&conn->dest_addr.u.sin, new_conn->dest_addr.u.sin,
+				sizeof(new_conn->dest_addr.u.sin));
+		break;
+	case CONNECTION_DOMAIN_INET6:
+		new_conn->dest_addr.domain = CONNECTION_DOMAIN_INET6;
+		memcpy(&conn->dest_addr.u.sin6, new_conn->dest_addr.u.sin6,
+				sizeof(new_conn->dest_addr.u.sin6));
+		break;
+	default:
+		ERR("Bad connection domain found during conn clone: %d",
+		    conn->dest_addr.domain);
+		goto error;
+	}
+}
+#endif
+
+/*
  * Return the matching element with the given key or NULL if not found.
  */
 ATTR_HIDDEN
