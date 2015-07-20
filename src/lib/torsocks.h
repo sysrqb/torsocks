@@ -129,6 +129,24 @@
 #define LIBC_FCLOSE_SIG FILE *fp
 #define LIBC_FCLOSE_ARGS fp
 
+/* dup(2) */
+#include <unistd.h>
+
+#define LIBC_DUP_NAME dup
+#define LIBC_DUP_NAME_STR XSTR(LIBC_DUP_NAME)
+#define LIBC_DUP_RET_TYPE int
+#define LIBC_DUP_SIG int oldfd
+#define LIBC_DUP_ARGS oldfd
+
+/* dup2(2) */
+#include <unistd.h>
+
+#define LIBC_DUP2_NAME dup2
+#define LIBC_DUP2_NAME_STR XSTR(LIBC_DUP2_NAME)
+#define LIBC_DUP2_RET_TYPE int
+#define LIBC_DUP2_SIG int oldfd, int newfd
+#define LIBC_DUP2_ARGS oldfd, newfd
+
 /* gethostbyname(3) - DEPRECATED in glibc. */
 #include <netdb.h>
 
@@ -347,6 +365,20 @@ struct hostent **result, int *h_errnop
 	int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags
 #define LIBC_ACCEPT4_ARGS sockfd, addr, addrlen, flags
 
+/* dup3(2) */
+#include <unistd.h>
+#include <fcntl.h>
+
+#define LIBC_DUP3_NAME dup3
+#define LIBC_DUP3_NAME_STR XSTR(LIBC_DUP3_NAME)
+#define LIBC_DUP3_RET_TYPE int
+#define LIBC_DUP3_SIG int oldfd, int newfd, int flags
+#define LIBC_DUP3_ARGS oldfd, newfd, flags
+
+/* gethostbyname(3) - DEPRECATED in glibc. */
+#include <netdb.h>
+
+
 #endif /* __linux__ */
 
 #if (defined(__FreeBSD__) || defined(__darwin__) || defined(__NetBSD__))
@@ -527,6 +559,18 @@ TSOCKS_DECL(fclose, LIBC_FCLOSE_RET_TYPE, LIBC_FCLOSE_SIG)
 #define LIBC_FCLOSE_DECL \
 		LIBC_FCLOSE_RET_TYPE LIBC_FCLOSE_NAME(LIBC_FCLOSE_SIG)
 
+/* dup(2) */
+extern TSOCKS_LIBC_DECL(dup, LIBC_DUP_RET_TYPE, LIBC_DUP_SIG)
+TSOCKS_DECL(dup, LIBC_DUP_RET_TYPE, LIBC_DUP_SIG)
+#define LIBC_DUP_DECL \
+		LIBC_DUP_RET_TYPE LIBC_DUP_NAME(LIBC_DUP_SIG)
+
+/* dup2(2) */
+extern TSOCKS_LIBC_DECL(dup2, LIBC_DUP2_RET_TYPE, LIBC_DUP2_SIG)
+TSOCKS_DECL(dup2, LIBC_DUP2_RET_TYPE, LIBC_DUP2_SIG)
+#define LIBC_DUP2_DECL \
+		LIBC_DUP2_RET_TYPE LIBC_DUP2_NAME(LIBC_DUP2_SIG)
+
 /* gethostbyname(3) */
 extern TSOCKS_LIBC_DECL(gethostbyname, LIBC_GETHOSTBYNAME_RET_TYPE,
 		LIBC_GETHOSTBYNAME_SIG)
@@ -588,6 +632,14 @@ extern TSOCKS_LIBC_DECL(accept4, LIBC_ACCEPT4_RET_TYPE, LIBC_ACCEPT4_SIG)
 TSOCKS_DECL(accept4, LIBC_ACCEPT4_RET_TYPE, LIBC_ACCEPT4_SIG)
 #define LIBC_ACCEPT4_DECL LIBC_ACCEPT4_RET_TYPE \
 		LIBC_ACCEPT4_NAME(LIBC_ACCEPT4_SIG)
+#endif
+
+/* dup3(2) */
+#if (defined(__linux__))
+extern TSOCKS_LIBC_DECL(dup3, LIBC_DUP3_RET_TYPE, LIBC_DUP3_SIG)
+TSOCKS_DECL(dup3, LIBC_DUP3_RET_TYPE, LIBC_DUP3_SIG)
+#define LIBC_DUP3_DECL \
+		LIBC_DUP3_RET_TYPE LIBC_DUP3_NAME(LIBC_DUP3_SIG)
 #endif
 
 /* listen(2) */
