@@ -39,11 +39,12 @@ LIBC_READ_RET_TYPE tsocks_read(LIBC_READ_SIG)
 {
 	struct connection *conn;
 
-	if (fd == 0)
-		return tsocks_libc_read(LIBC_READ_ARGS);
+	DBG("[read] Read caught on fd %d", fd);
 	conn = connection_find(fd);
-	if (conn)
+	if (conn) {
 		fd = conn->tsocks_fd;
+		DBG("Found conn %#x with tsocks fd %d", conn, fd);
+	}
 	return tsocks_libc_read(LIBC_READ_ARGS);
 }
 

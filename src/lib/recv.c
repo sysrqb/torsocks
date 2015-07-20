@@ -63,8 +63,12 @@ LIBC_RECV_RET_TYPE tsocks_recv(LIBC_RECV_SIG)
 {
 	struct connection *conn;
 
+	DBG("[recv] Recv caught on fd %d", sockfd);
 	conn = connection_find(sockfd);
-	sockfd = conn->tsocks_fd;
+	if (conn) {
+		sockfd = conn->tsocks_fd;
+		DBG("Found conn %#x with tsocks fd %d", conn, sockfd);
+	}
 	return tsocks_libc_recv(LIBC_RECV_ARGS);
 }
 
@@ -78,8 +82,12 @@ LIBC_RECVFROM_RET_TYPE tsocks_recvfrom(LIBC_RECVFROM_SIG)
 {
 	struct connection *conn;
 
+	DBG("[recvfrom] Recv caught on fd %d", sockfd);
 	conn = connection_find(sockfd);
-	sockfd = conn->tsocks_fd;
+	if (conn) {
+		sockfd = conn->tsocks_fd;
+		DBG("Found conn %#x with tsocks fd %d", conn, sockfd);
+	}
 	return tsocks_libc_recvfrom(LIBC_RECVFROM_ARGS);
 }
 
@@ -105,6 +113,7 @@ LIBC_RECVMSG_RET_TYPE tsocks_recvmsg(LIBC_RECVMSG_SIG)
 	struct msghdr msg_hdr;
 	struct sockaddr addr;
 
+	DBG("[recvmsg] Recv caught on fd %d", sockfd);
 	/* Don't bother if the socket family is NOT Unix. */
 	addrlen = sizeof(addr);
 	ret = getsockname(sockfd, &addr, &addrlen);
@@ -204,6 +213,7 @@ LIBC_RECVMSG_RET_TYPE tsocks_recvmsg(LIBC_RECVMSG_SIG)
 	/* At this point, NO socket was detected, continue to the libc safely. */
 
 libc:
+	DBG("Passing recvfrom to libc.");
 	return tsocks_libc_recvmsg(LIBC_RECVMSG_ARGS);
 
 error:

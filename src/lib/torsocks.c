@@ -567,9 +567,8 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 		}
 	}
 
-	conn.tsocks_fd = tsocks_libc_socket(af, SOCK_STREAM, IPPROTO_TCP);
-	conn.app_fd = conn.tsocks_fd;
-	if (conn.tsocks_fd < 0) {
+	conn.app_fd = tsocks_libc_socket(af, SOCK_STREAM, IPPROTO_TCP);
+	if (conn.app_fd < 0) {
 		PERROR("socket");
 		ret = -errno;
 		goto error;
@@ -585,9 +584,11 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 	connection_registry_lock();
 	connection_insert(&conn);
 	connection_registry_unlock();
+
+	DBG("Socket created for resolve, fd %d", conn.app_fd);
 	ret = setup_tor_connection(&conn, socks5_method);
 
-	DBG("Socket created for resolve, fd %d", conn.tsocks_fd);
+	connection_get_ref(&conn);
 	if (ret < 0) {
 		goto end_close;
 	}
@@ -612,6 +613,10 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 	}
 
 end_close:
+	connection_remove(&conn);
+	if (tsocks_libc_close(conn.app_fd) < 0) {
+		PERROR("close");
+	}
 	if (tsocks_libc_close(conn.tsocks_fd) < 0) {
 		PERROR("close");
 	}
@@ -634,15 +639,15 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 	assert(addr);
 	assert(ip);
 
-	DBG("Resolving %" PRIu32 " on the Tor network", addr);
+	DBG("Resolving %" PRIu32 " (%s) on the Tor network", addr,
+	    inet_ntoa(*((struct in_addr *) addr)));
 
-	conn.tsocks_fd = tsocks_libc_socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (conn.tsocks_fd < 0) {
+	conn.app_fd = tsocks_libc_socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (conn.app_fd < 0) {
 		PERROR("socket");
 		ret = -errno;
 		goto error;
 	}
-	conn.app_fd = conn.tsocks_fd;
 	conn.dest_addr.domain = CONNECTION_DOMAIN_INET;
 
 	/* Is this configuration is set to use SOCKS5 authentication. */
@@ -655,9 +660,12 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 	connection_registry_lock();
 	connection_insert(&conn);
 	connection_registry_unlock();
+
+	DBG("Socket created for ptr resolve, fd %d", conn.app_fd);
 	ret = setup_tor_connection(&conn, socks5_method);
 
-	DBG("Socket created for ptr resolve, fd %d", conn.tsocks_fd);
+	connection_get_ref(&conn);
+
 	if (ret < 0) {
 		goto end_close;
 	}
@@ -682,10 +690,14 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 	}
 
 end_close:
+	connection_remove(&conn);
+	if (tsocks_libc_close(conn.app_fd) < 0) {
+		PERROR("close");
+	}
 	if (tsocks_libc_close(conn.tsocks_fd) < 0) {
 		PERROR("close");
 	}
-
+end:
 error:
 	return ret;
 }

@@ -59,6 +59,7 @@ LIBC_SEND_RET_TYPE tsocks_send(LIBC_SEND_SIG)
 {
 	struct connection *conn;
 
+	DBG("[send] Send caught on fd %d", sockfd);
 	conn = connection_find(sockfd);
 	if (conn == NULL) {
 		ERR("[send] Connection lookup failed for fd %d", sockfd);
@@ -66,6 +67,7 @@ LIBC_SEND_RET_TYPE tsocks_send(LIBC_SEND_SIG)
 		return -1;
 	}
 	sockfd = conn->tsocks_fd;
+	DBG("Found conn %#x with tsocks fd %d", conn, sockfd);
 	return tsocks_libc_send(LIBC_SEND_ARGS);
 }
 
@@ -87,8 +89,10 @@ LIBC_SENDTO_RET_TYPE tsocks_sendto(LIBC_SENDTO_SIG)
 #ifdef MSG_FASTOPEN
 	int ret;
 
+	DBG("[sendto] Send caught on fd %d", sockfd);
 	if ((flags & MSG_FASTOPEN) == 0) {
 		/* No TFO, fallback to libc sendto() */
+		DBG("Sending directly to libc");
 		goto libc_sendto;
 	}
 
@@ -118,8 +122,15 @@ LIBC_SENDMSG_RET_TYPE tsocks_sendmsg(LIBC_SENDMSG_SIG)
 {
 	struct connection *conn;
 
+	DBG("[sendmsg] Send caught on fd %d", sockfd);
 	conn = connection_find(sockfd);
+	if (conn == NULL) {
+		ERR("[sendmsg] Connection lookup failed for fd %d", sockfd);
+		errno = EBADF;
+		return -1;
+	}
 	sockfd = conn->tsocks_fd;
+	DBG("Found conn %#x with tsocks fd %d", conn, sockfd);
 	return tsocks_libc_sendmsg(LIBC_SENDMSG_ARGS);
 }
 

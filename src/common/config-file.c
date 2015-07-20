@@ -81,7 +81,9 @@ static int set_onion_info(const char *addr, struct configuration *config)
 	mask = strdup(addr + (ip - addr) + 1);
 	ip = strndup(addr, ip - addr);
 	if (!ip || !mask) {
-		PERROR("[config] strdup onion addr");
+		char buf[200];
+		strerror_r(errno, buf, sizeof(buf));
+		_PERROR("[config] strdup onion addr: %s", buf);
 		ret = -ENOMEM;
 		goto error;
 	}

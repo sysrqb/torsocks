@@ -21,6 +21,7 @@
 #include <assert.h>
 
 #include "compat.h"
+#include <common/log.h>
 
 struct ref {
 	long count;
@@ -49,6 +50,7 @@ static inline void ref_put(struct ref *r,
 
 	assert(release);
 	ret = __sync_sub_and_fetch(&r->count, 1);
+	DBG("[ref] Put found %ld refs", ret);
 	assert(ret >= 0);
 	if (ret == 0) {
 		release(r);

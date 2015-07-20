@@ -267,6 +267,7 @@ int socks5_connect(struct connection *conn)
 		goto error;
 	}
 
+	DBG("Initiating connection to local Tor proxy on %d", conn->tsocks_fd);
 	do {
 		/* Use the original libc connect() to the Tor. */
 		ret = tsocks_libc_connect(conn->tsocks_fd, socks5_addr, len);

@@ -151,11 +151,6 @@ ht_string_hash(const char *s)
       return NULL;                                                      \
     p = &HT_BUCKET_(head, field, elm, hashfn);                          \
     while (*p) {                                                        \
-      if (*p < 0xffffff) {                                              \
-        DBG("[ht] Reached nearly NULL value (%#x) during HT lookup "    \
-            "for %s", *p, elm->key);                                    \
-        return NULL;                                                    \
-      }                                                                 \
       if (eqfn(*p, elm))                                                \
         return p;                                                       \
       p = &(*p)->field.hte_next;                                        \
@@ -186,6 +181,8 @@ ht_string_hash(const char *s)
     p = &HT_BUCKET_(head, field, elm, hashfn);                          \
     elm->field.hte_next = *p;                                           \
     *p = elm;                                                           \
+    DBG("[ht] Inserting elm %d at %#x from bucket, next elm at '%#x'",  \
+        (*p)->key, *p, (*p)->field.hte_next);                           \
   }                                                                     \
   /* Insert the element 'elm' into the table 'head'. If there already   \
    * a matching element in the table, replace that element and return   \
@@ -200,9 +197,12 @@ ht_string_hash(const char *s)
     p = name##_HT_FIND_P_(head, elm);                                   \
     r = *p;                                                             \
     *p = elm;                                                           \
+    DBG("[ht] Replacing elm %d at %#x from bucket, next elm at '%#x'",  \
+        (*p)->key, *p, (*p)->field.hte_next);                           \
     if (r && (r!=elm)) {                                                \
       elm->field.hte_next = r->field.hte_next;                          \
       r->field.hte_next = NULL;                                         \
+      DBG("[ht] Returning elm at %#x", r);                              \
       return r;                                                         \
     } else {                                                            \
       ++head->hth_n_entries;                                            \

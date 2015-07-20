@@ -211,6 +211,7 @@ LIBC_CONNECT_RET_TYPE tsocks_connect(LIBC_CONNECT_SIG)
 		ret_errno = -ret;
 		goto error_free;
 	}
+	DBG("Connect with Tor established on fd %d", new_conn->tsocks_fd);
 
 	/* Flag errno for success */
 	ret = errno = 0;

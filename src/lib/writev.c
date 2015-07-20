@@ -39,9 +39,12 @@ LIBC_WRITEV_RET_TYPE tsocks_writev(LIBC_WRITEV_SIG)
 {
 	struct connection *conn;
 
+	DBG("[writev] Write caught on fd %d", fd);
 	conn = connection_find(fd);
-	if (conn)
+	if (conn) {
 		fd = conn->tsocks_fd;
+		DBG("Found conn %#x with tsocks fd %d", conn, fd);
+	}
 	return tsocks_libc_writev(LIBC_WRITEV_ARGS);
 }
 
