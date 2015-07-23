@@ -18,6 +18,9 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <sys/select.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "connection.h"
 #include "macros.h"
@@ -32,6 +35,20 @@
  * This mutex is NOT nested anywhere.
  */
 static TSOCKS_INIT_MUTEX(connection_registry_mutex);
+
+/*
+ * List of open FDs we are hijacking
+ *
+ * These are only the fds, the conn should be retrieved from the HT.
+ */
+struct connection_list {
+	uint32_t len;
+	uint32_t head;
+	uint32_t num_used;
+	int *fds;
+} conn_list;
+
+#define CONN_LIST_START_LEN 32
 
 /*
  * Release connection using the given refcount located inside the connection
@@ -249,6 +266,136 @@ struct connection *connection_find(int key)
 }
 
 /*
+ * Insert fd into the conn_list, the list of all application connections we're
+ * currently intercepting. Increase conn_list's size if we're at its capacity.
+ *
+ * All unused indices should have a value of -1.
+ */
+static void connection_conn_list_insert(int fd)
+{
+	uint32_t i;
+	if (fd < 0)
+		return;
+	if (conn_list.fds == NULL) {
+		conn_list.fds = malloc(CONN_LIST_START_LEN*sizeof(*conn_list.fds));
+		if (!conn_list.fds) {
+			ERR("Could not alloc space for conn_list.");
+			return;
+		}
+		conn_list.len = CONN_LIST_START_LEN;
+		conn_list.head = 0;
+		conn_list.num_used = 0;
+		/* Initialize the array to -1 */
+		memset(conn_list.fds, -1, conn_list.len);
+	} else if (conn_list.len == conn_list.num_used) {
+		errno = 0;
+		conn_list.fds = realloc(conn_list.fds, conn_list.len*2);
+		if (errno != 0) {
+			ERR("Could not realloc more space for conn_list. %s",
+			    strerror(errno));
+			return;
+		}
+		/* Initialize the new memory to -1 */
+		memset(conn_list.fds + conn_list.len, -1, conn_list.len);
+		conn_list.len *= 2;
+	}
+	for (i=0; i < conn_list.len; ++i) {
+		if (conn_list.fds[i] == -1) {
+			DBG("Inserting fd %d into conn_list at %d.", fd, i);
+			conn_list.fds[i] = fd;
+			conn_list.num_used++;
+			if (i > conn_list.head)
+				conn_list.head = i;
+			break;
+		}
+	}
+}
+
+/*
+ * Remove fd from the conn_list.
+ *
+ * We reset the value in the conn_list as -1.
+ *
+ * This should only be called when we're certain we don't care about
+ * it anymore.
+ */
+static void connection_conn_list_remove(int fd)
+{
+	int i;
+
+	DBG("Removing fd %d from conn_list.", fd);
+	if (fd < 0)
+		return;
+	if (conn_list.len == 0 || conn_list.num_used == 0 ||
+	    conn_list.fds == NULL)
+		return;
+	for (i = 0; i < conn_list.head; i++) {
+		if (conn_list.fds[i] == fd) {
+			conn_list.fds[i] = -1;
+			conn_list.num_used--;
+			DBG("Removed fd %d from conn_list at %d.", fd, i);
+			if (i == conn_list.head) {
+				/* Adjust head so it points to the highest
+				 * used index in the array */
+				while (i > -1) {
+					if (conn_list.fds[i] != -1) {
+						conn_list.head = i;
+					}
+					i--;
+				}
+			}
+			break;
+		}
+	}
+}
+
+/*
+ * For each application fd in fds, find the tsocks connection
+ * corresponding to it. Remove the application fd and add the tsocks
+ * connection.
+ *
+ * Returns the fd with the highest number
+ */
+ATTR_HIDDEN
+int connection_conn_list_find_and_replace(fd_set *fds, int **replaced[], int *len)
+{
+	int i, max = -1, rep_idx=0;
+	if (conn_list.len == 0 || conn_list.num_used == 0 ||
+	    conn_list.fds == NULL)
+		return max;
+	if (fds == NULL)
+		return max;
+	*replaced = calloc(conn_list.num_used, sizeof(**replaced));
+	if (*replaced == NULL) {
+		*len = 0;
+		return max;
+	}
+	for (i = 0; i < conn_list.head; i++) {
+		int fd = conn_list.fds[i];
+		if (fd == -1)
+			continue;
+		if (FD_ISSET(fd, fds)) {
+			struct connection *conn;
+			conn = connection_find(fd);
+			FD_CLR(fd, fds);
+			FD_SET(conn->tsocks_fd, fds);
+			DBG("Replaced fd %d with %d in fd_set.", fd, conn->tsocks_fd);
+			if (conn->tsocks_fd > max)
+				max = conn->tsocks_fd;
+			(*replaced)[rep_idx] = calloc(2, sizeof(***replaced));
+			if ((*replaced)[rep_idx] == NULL) {
+				*len = rep_idx;
+				return max;
+			}
+			(*replaced)[rep_idx][0] = conn->tsocks_fd;
+			(*replaced)[rep_idx++][1] = fd;
+		}
+	}
+	*len = rep_idx;
+	return max;
+}
+
+/*
  * Insert a connection object into the hash table.
  */
 ATTR_HIDDEN
@@ -263,6 +410,7 @@ void connection_insert(struct connection *conn)
 	assert(!c_tmp);
 
 	HT_INSERT(connection_registry, &connection_registry_root, conn);
+	connection_conn_list_insert(conn->app_fd);
 }
 
 /*
@@ -273,6 +421,7 @@ void connection_remove(struct connection *conn)
 {
 	assert(conn);
 	HT_REMOVE(connection_registry, &connection_registry_root, conn);
+	connection_conn_list_remove(conn->app_fd);
 }
 
 /*
