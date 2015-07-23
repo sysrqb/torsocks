@@ -342,6 +342,29 @@ struct hostent **result, int *h_errnop
 	int sockfd, int backlog
 #define LIBC_LISTEN_ARGS sockfd, backlog
 
+/* select(2) */
+#include <sys/select.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#define LIBC_SELECT_NAME select
+#define LIBC_SELECT_NAME_STR XSTR(LIBC_SELECT_NAME)
+#define LIBC_SELECT_RET_TYPE int
+#define LIBC_SELECT_SIG \
+        int nfds, fd_set *readfds, fd_set *writefds, \
+        fd_set *exceptfds, struct timeval *timeout
+#define LIBC_SELECT_ARGS nfds, readfds, writefds, exceptfds, timeout
+
+#define LIBC_PSELECT_NAME pselect
+#define LIBC_PSELECT_NAME_STR XSTR(LIBC_PSELECT_NAME)
+#define LIBC_PSELECT_RET_TYPE int
+#define LIBC_PSELECT_SIG \
+        int nfds, fd_set *readfds, fd_set *writefds, \
+        fd_set *exceptfds, struct timespec *timeout, \
+        const sigset_t *sigmask
+#define LIBC_PSELECT_ARGS nfds, readsfds, writefds, exceptfds, timeout, sigmask
+
 #else
 #error "OS not supported."
 #endif /* __GLIBC__ , __FreeBSD__, __darwin__, __NetBSD__ */
@@ -647,6 +670,18 @@ extern TSOCKS_LIBC_DECL(listen, LIBC_LISTEN_RET_TYPE, LIBC_LISTEN_SIG)
 TSOCKS_DECL(listen, LIBC_LISTEN_RET_TYPE, LIBC_LISTEN_SIG)
 #define LIBC_LISTEN_DECL LIBC_LISTEN_RET_TYPE \
 		LIBC_LISTEN_NAME(LIBC_LISTEN_SIG)
+
+/* select(2) */
+extern TSOCKS_LIBC_DECL(select, LIBC_SELECT_RET_TYPE, LIBC_SELECT_SIG)
+TSOCKS_DECL(select, LIBC_SELECT_RET_TYPE, LIBC_SELECT_SIG)
+#define LIBC_SELECT_DECL LIBC_SELECT_RET_TYPE \
+		LIBC_SELECT_NAME(LIBC_SELECT_SIG)
+
+/* pselect(2) */
+extern TSOCKS_LIBC_DECL(pselect, LIBC_PSELECT_RET_TYPE, LIBC_PSELECT_SIG)
+TSOCKS_DECL(pselect, LIBC_PSELECT_RET_TYPE, LIBC_PSELECT_SIG)
+#define LIBC_PSELECT_DECL LIBC_PSELECT_RET_TYPE \
+		LIBC_PSELECT_NAME(LIBC_PSELECT_SIG)
 
 /*
  * Those are actions to do during the lookup process of libc symbols. For
