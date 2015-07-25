@@ -697,7 +697,6 @@ end_close:
 	if (tsocks_libc_close(conn.tsocks_fd) < 0) {
 		PERROR("close");
 	}
-end:
 error:
 	return ret;
 }
