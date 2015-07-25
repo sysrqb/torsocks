@@ -41,7 +41,7 @@ LIBC_GETADDRINFO_RET_TYPE tsocks_getaddrinfo(LIBC_GETADDRINFO_SIG)
 	struct in_addr addr4;
 	struct in6_addr addr6;
 	void *addr;
-	char *ip_str, ipv4[INET_ADDRSTRLEN], ipv6[INET6_ADDRSTRLEN];
+	char *ip_str = NULL, ipv4[INET_ADDRSTRLEN], ipv6[INET6_ADDRSTRLEN];
 	socklen_t ip_str_size;
 	const char *tmp_node;
 	char hostname[HOST_NAME_MAX];
