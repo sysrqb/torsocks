@@ -81,7 +81,7 @@ LIBC_SELECT_RET_TYPE tsocks_select(LIBC_SELECT_SIG)
 }
 
 /*
- * Libc hijacked symbol open(2).
+ * Libc hijacked symbol select(2).
  */
 LIBC_SELECT_DECL
 {
