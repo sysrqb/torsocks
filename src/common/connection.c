@@ -21,6 +21,7 @@
 #include <sys/select.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <poll.h>
 
 #include "connection.h"
 #include "macros.h"
@@ -394,6 +395,50 @@ int connection_conn_list_find_and_replace_select(fd_set *fds,
 	}
 	*len = rep_idx;
 	return max;
+}
+
+/*
+ * For each application fd in fds, find the tsocks connection
+ * corresponding to it. Substitute the application fd with the tsocks
+ * connection.
+ */
+ATTR_HIDDEN
+void connection_conn_list_find_and_replace_poll(struct pollfd *fds, nfds_t nfds,
+						int **replaced[], int *len)
+{
+	int i, j, rep_idx=0;
+
+	if (conn_list.len == 0 || conn_list.num_used == 0 ||
+	    conn_list.fds == NULL)
+		return;
+	if (fds == NULL)
+		return;
+	*replaced = calloc(conn_list.num_used, sizeof(**replaced));
+	if (*replaced == NULL) {
+		*len = 0;
+		return;
+	}
+	for (i = 0; i < conn_list.head; i++) {
+		int fd = conn_list.fds[i];
+		if (fd == -1)
+			continue;
+		for (j = 0; j < nfds; j++) {
+			if (fd == fds[j].fd) {
+				struct connection *conn;
+				conn = connection_find(fd);
+				fds[j].fd = conn->tsocks_fd;
+				DBG("Replaced fd %d with %d in fd_set.", fd, conn->tsocks_fd);
+				(*replaced)[rep_idx] = calloc(2, sizeof(***replaced));
+				if ((*replaced)[rep_idx] == NULL) {
+					*len = rep_idx;
+					return;
+				}
+				(*replaced)[rep_idx][0] = conn->tsocks_fd;
+				(*replaced)[rep_idx++][1] = fd;
+			}
+		}
+	}
+	*len = rep_idx;
 }
 
 /*
