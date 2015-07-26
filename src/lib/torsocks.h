@@ -329,6 +329,7 @@ struct hostent **result, int *h_errnop
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <signal.h>
 
 #define LIBC_SELECT_NAME select
 #define LIBC_SELECT_NAME_STR XSTR(LIBC_SELECT_NAME)
@@ -343,9 +344,9 @@ struct hostent **result, int *h_errnop
 #define LIBC_PSELECT_RET_TYPE int
 #define LIBC_PSELECT_SIG \
         int nfds, fd_set *readfds, fd_set *writefds, \
-        fd_set *exceptfds, struct timespec *timeout, \
+        fd_set *exceptfds, const struct timespec *timeout, \
         const sigset_t *sigmask
-#define LIBC_PSELECT_ARGS nfds, readsfds, writefds, exceptfds, timeout, sigmask
+#define LIBC_PSELECT_ARGS nfds, readfds, writefds, exceptfds, timeout, sigmask
 
 #else
 #error "OS not supported."
