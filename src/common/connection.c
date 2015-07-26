@@ -357,7 +357,8 @@ static void connection_conn_list_remove(int fd)
  * Returns the fd with the highest number
  */
 ATTR_HIDDEN
-int connection_conn_list_find_and_replace(fd_set *fds, int **replaced[], int *len)
+int connection_conn_list_find_and_replace_select(fd_set *fds,
+						int **replaced[], int *len)
 {
 	int i, max = -1, rep_idx=0;
 	if (conn_list.len == 0 || conn_list.num_used == 0 ||

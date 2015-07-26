@@ -53,17 +53,17 @@ LIBC_SELECT_RET_TYPE tsocks_select(LIBC_SELECT_SIG)
 	 * read_replaced_fds will be a list of (tsocks_fd, app_fd) pairs of
 	 * all the fds we replaced, and it has a size of read_replaced_len.
 	 */
-	new_nfds = connection_conn_list_find_and_replace(readfds,
+	new_nfds = connection_conn_list_find_and_replace_select(readfds,
 							 &read_replaced_fds,
 							 &read_replaced_len);
 	if ((new_nfds + 1) > nfds)
 		nfds = new_nfds + 1;
-	new_nfds = connection_conn_list_find_and_replace(writefds,
+	new_nfds = connection_conn_list_find_and_replace_select(writefds,
 							 &write_replaced_fds,
 							 &write_replaced_len);
 	if ((new_nfds + 1) > nfds)
 		nfds = new_nfds + 1;
-	new_nfds = connection_conn_list_find_and_replace(exceptfds,
+	new_nfds = connection_conn_list_find_and_replace_select(exceptfds,
 							 &except_replaced_fds,
 							 &except_replaced_len);
 	if ((new_nfds + 1) > nfds)
@@ -101,17 +101,17 @@ LIBC_PSELECT_RET_TYPE tsocks_pselect(LIBC_PSELECT_SIG)
 	 * read_replaced_fds will be a list of (tsocks_fd, app_fd) pairs of
 	 * all the fds we replaced, and it has a size of read_replaced_len.
 	 */
-	new_nfds = connection_conn_list_find_and_replace(readfds,
+	new_nfds = connection_conn_list_find_and_replace_select(readfds,
 							 &read_replaced_fds,
 							 &read_replaced_len);
 	if ((new_nfds + 1) > nfds)
 		nfds = new_nfds + 1;
-	new_nfds = connection_conn_list_find_and_replace(writefds,
+	new_nfds = connection_conn_list_find_and_replace_select(writefds,
 							 &write_replaced_fds,
 							 &write_replaced_len);
 	if ((new_nfds + 1) > nfds)
 		nfds = new_nfds + 1;
-	new_nfds = connection_conn_list_find_and_replace(exceptfds,
+	new_nfds = connection_conn_list_find_and_replace_select(exceptfds,
 							 &except_replaced_fds,
 							 &except_replaced_len);
 	if ((new_nfds + 1) > nfds)
