@@ -420,6 +420,7 @@ int connection_conn_list_find_and_replace_select(fd_set *fds,
 		return max;
 	*replaced = calloc(conn_list.num_used, sizeof(**replaced));
 	if (*replaced == NULL) {
+		DBG("Couldn't allocate space for replaced");
 		*len = 0;
 		return max;
 	}
