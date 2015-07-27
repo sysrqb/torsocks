@@ -49,6 +49,7 @@ tests/test_dns
 tests/test_socket
 tests/test_fd_passing
 tests/test_getpeername
+tests/test_select
 tests/unit/test_onion
 tests/unit/test_connection
 tests/unit/test_utils
