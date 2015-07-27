@@ -460,7 +460,7 @@ int tsocks_connect_to_tor(struct connection *conn)
 
 	assert(conn);
 
-	DBG("Connecting to the Tor network on fd %d", conn->app_fd);
+	DBG("Connecting to the Tor network for app fd %d", conn->app_fd);
 
 	/* Is this configuration is set to use SOCKS5 authentication. */
 	if (tsocks_config.socks5_use_auth) {
