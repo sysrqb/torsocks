@@ -6,6 +6,7 @@ TESTS = \
 	test_fd_passing \
 	test_getpeername \
 	test_socket \
+	test_select \
 	# end of TESTS
 
 TAP_DRIVER = $(top_srcdir)/tests/tap-driver.sh
@@ -19,7 +20,7 @@ LIBTORSOCKS=$(top_builddir)/src/lib/libtorsocks.la
 
 HELPER_SOURCES = helpers.c helpers.h
 
-noinst_PROGRAMS = test_dns test_socket test_connect test_fd_passing test_getpeername
+noinst_PROGRAMS = test_dns test_socket test_connect test_fd_passing test_getpeername test_select
 
 test_dns_SOURCES = test_dns.c $(HELPER_SOURCES)
 test_dns_LDADD = $(LIBTAP) $(LIBTORSOCKS)
@@ -35,3 +36,6 @@ test_fd_passing_LDADD = $(LIBTAP) $(LIBTORSOCKS) -lpthread
 
 test_getpeername_SOURCES = test_getpeername.c $(HELPER_SOURCES)
 test_getpeername_LDADD = $(LIBTAP) $(LIBTORSOCKS)
+
+test_select_SOURCES = test_select.c
+test_select_LDADD = $(LIBTAP) $(LIBTORSOCKS)
