@@ -26,7 +26,7 @@
 
 #include <tap/tap.h>
 
-#define NUM_TESTS 12
+#define NUM_TESTS 21
 
 static void test_select(void)
 {
@@ -59,9 +59,9 @@ static void test_select(void)
 
 	/* Now let's see if we return immediately and successfully */
 	ret = select(pipe_fds[1] + 1, &readfds, &writefds, &exceptfds, &tv);
-	ok(ret != -1 && (time(NULL) - now) < 2, "Select error with pipes");
-	ok(!FD_ISSET(pipe_fds[0], &readfds), "Read end of pipe has mystery data");
-	ok(FD_ISSET(pipe_fds[1], &writefds), "Write end of pipe is not writable 1");
+	ok(ret != -1 && (time(NULL) - now) < 2, "Select returned without error");
+	ok(!FD_ISSET(pipe_fds[0], &readfds), "Read end of pipe has no data");
+	ok(FD_ISSET(pipe_fds[1], &writefds), "Write end of pipe is writable");
 
 	ret = write(pipe_fds[1], "test", strlen("test"));
 	ok(ret != 1, "Write failed on pipe.");
@@ -70,9 +70,9 @@ static void test_select(void)
 	tv.tv_usec = 0;
 	now = time(NULL);
 	ret = select(pipe_fds[1] + 1, &readfds, &writefds, &exceptfds, &tv);
-	ok(ret != -1 && (time(NULL) - now) < 2, "Select error with pipes");
-	ok(FD_ISSET(pipe_fds[0], &readfds), "Read end of pipe has no data");
-	ok(FD_ISSET(pipe_fds[1], &writefds), "Write end of pipe is not writable 2");
+	ok(ret != -1 && (time(NULL) - now) < 2, "Select returned without error, again");
+	ok(FD_ISSET(pipe_fds[0], &readfds), "Read end of pipe has data");
+	ok(FD_ISSET(pipe_fds[1], &writefds), "Write end of pipe is still writable");
 
 	close(pipe_fds[0]);
 	close(pipe_fds[1]);
@@ -101,9 +101,32 @@ static void test_select(void)
 	tv.tv_usec = 0;
 	now = time(NULL);
 	ret = select(inet_sock + 1, &readfds, &writefds, &exceptfds, &tv);
-	ok(ret != -1 && (time(NULL) - now) < 2, "Select error from inet socket");
-	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has data for reading");
-	ok(FD_ISSET(inet_sock, &writefds), "inet socket is not writable");
+	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
+	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data for reading");
+	ok(!FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
+	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket not in exception fd set");
+
+	FD_ZERO(&readfds);
+	FD_SET(inet_sock, &writefds);
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+	now = time(NULL);
+	ret = select(inet_sock + 1, &readfds, &writefds, &exceptfds, &tv);
+	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
+	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data for reading");
+	ok(FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
+	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket not in exception fd set");
+
+	FD_ZERO(&writefds);
+	FD_SET(inet_sock, &exceptfds);
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+	now = time(NULL);
+	ret = select(inet_sock + 1, &readfds, &writefds, &exceptfds, &tv);
+	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
+	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data for reading");
+	ok(!FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
+	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket has no exception");
 
 error:
 	if (inet_sock >= 0) {
