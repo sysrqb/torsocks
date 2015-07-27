@@ -373,7 +373,7 @@ int connection_conn_list_find_and_replace_select(fd_set *fds,
 		*len = 0;
 		return max;
 	}
-	for (i = 0; i < conn_list.head; i++) {
+	for (i = 0; i < conn_list.head + 1; i++) {
 		int fd = conn_list.fds[i];
 		if (fd == -1)
 			continue;
