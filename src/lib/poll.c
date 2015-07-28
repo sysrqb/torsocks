@@ -31,7 +31,7 @@ static void poll_restore_fds_and_free(struct pollfd *fds, nfds_t nfds, int **rep
 		}
 		free(replaced[i]);
 	}
-	DBG("[poll] Restored %d descriptor%s in fd_set", count,
+	DBG("[poll] Restored %d descriptor%s in fds", count,
 					   count == 1 ? "" : "s");
 	free(replaced);
 }
@@ -45,7 +45,7 @@ LIBC_POLL_RET_TYPE tsocks_poll(LIBC_POLL_SIG)
 	int replaced_len = 0;
 	int retval;
 
-	DBG("[poll] Select caught");
+	DBG("[poll] Poll caught");
 	/* Find all the fds in readfds whose connections we are currently
 	 * hijacking and replace them with our tsocks fd.
 	 *
