@@ -11,6 +11,6 @@ libtorsocks_la_SOURCES = torsocks.c torsocks.h \
                          getpeername.c select.c socket.c syscall.c \
                          socketpair.c recv.c exit.c accept.c listen.c \
                          fclose.c send.c read.c write.c readv.c writev.c \
-                         shutdown.c open.c fopen.c
+                         shutdown.c open.c fopen.c poll.c
 
 libtorsocks_la_LIBADD = $(top_builddir)/src/common/libcommon.la
