@@ -108,7 +108,7 @@ static void test_poll(void)
 	fds[0].events = POLLIN;
 	now = time(NULL);
 	ret = poll(fds, 1, 0);
-	ok(ret == 1 && (time(NULL) - now) < 2, "Poll with inet socket returned without error");
+	ok(ret == 0 && (time(NULL) - now) < 2, "Poll with inet socket returned without error");
 	ok(!(fds[0].revents & POLLIN), "inet socket has no data needing reading");
 	ok(!(fds[0].revents & POLLOUT), "inet socket not considered writable");
 	ok(!(fds[0].revents & POLLERR), "inet socket not in exception state");
