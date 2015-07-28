@@ -26,11 +26,12 @@
 
 #include <tap/tap.h>
 
-#define NUM_TESTS 21
+#define NUM_TESTS 34
 
 static void test_select(void)
 {
-	int pipe_fds[2], ret, inet_sock = -1;
+	int pipe_fds[2], ret;
+	int inet_sock = -1, inet_sock2 = -1, inet_sock3 = -1;
 	struct sockaddr_in addrv4;
 	const char *ip = "93.95.227.222";
 	fd_set readfds, writefds, exceptfds;
@@ -76,6 +77,8 @@ static void test_select(void)
 
 	close(pipe_fds[0]);
 	close(pipe_fds[1]);
+	pipe_fds[0] = -1;
+	pipe_fds[1] = -1;
 	FD_ZERO(&readfds);
 	FD_ZERO(&writefds);
 	FD_ZERO(&exceptfds);
@@ -83,6 +86,14 @@ static void test_select(void)
 	/* Create inet socket. */
 	inet_sock = socket(AF_INET, SOCK_STREAM, 0);
 	ok(inet_sock >= 0, "Inet socket created");
+
+	/* Create another inet socket. */
+	inet_sock2 = socket(AF_INET, SOCK_STREAM, 0);
+	ok(inet_sock2 >= 0, "Inet socket 2 created");
+
+	/* Create another inet socket. */
+	inet_sock3 = socket(AF_INET, SOCK_STREAM, 0);
+	ok(inet_sock3 >= 0, "Inet socket 3 created");
 
 	/* Connect socket through Tor so we can test the wrapper. */
 	addrv4.sin_family = AF_INET;
@@ -102,7 +113,7 @@ static void test_select(void)
 	now = time(NULL);
 	ret = select(inet_sock + 1, &readfds, &writefds, &exceptfds, &tv);
 	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
-	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data for reading");
+	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data needing reading");
 	ok(!FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
 	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket not in exception fd set");
 
@@ -113,7 +124,7 @@ static void test_select(void)
 	now = time(NULL);
 	ret = select(inet_sock + 1, &readfds, &writefds, &exceptfds, &tv);
 	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
-	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data for reading");
+	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data needing reading");
 	ok(FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
 	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket not in exception fd set");
 
@@ -124,12 +135,83 @@ static void test_select(void)
 	now = time(NULL);
 	ret = select(inet_sock + 1, &readfds, &writefds, &exceptfds, &tv);
 	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
-	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data for reading");
+	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data needing reading");
 	ok(!FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
 	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket has no exception");
 
+	ret = connect(inet_sock2, (struct sockaddr *) &addrv4, sizeof(addrv4));
+	if (ret < 0) {
+		fail("Unable to connect to %s", ip);
+		goto error;
+	}
+
+	ret = connect(inet_sock3, (struct sockaddr *) &addrv4, sizeof(addrv4));
+	if (ret < 0) {
+		fail("Unable to connect to %s", ip);
+		goto error;
+	}
+
+	FD_SET(inet_sock, &readfds);
+	FD_SET(inet_sock2, &readfds);
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+	now = time(NULL);
+	ret = select(inet_sock2 + 1, &readfds, &writefds, &exceptfds, &tv);
+	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
+	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data needing reading");
+	ok(!FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
+	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket not in exception fd set");
+
+	close(inet_sock3);
+	close(inet_sock2);
+
+	ret = pipe(pipe_fds);
+	if (ret < 0) {
+		fail("Unable to create pipe 2");
+		goto error;
+	}
+	ok(pipe_fds[0] > 0 && pipe_fds[1] > 0, "new pipe created");
+
+	/* Create another inet socket. */
+	inet_sock2 = socket(AF_INET, SOCK_STREAM, 0);
+	ok(inet_sock2 >= 0, "Inet socket 2 created");
+
+	/* Create another inet socket. */
+	inet_sock3 = socket(AF_INET, SOCK_STREAM, 0);
+	ok(inet_sock3 >= 0, "Inet socket 3 created");
+
+	ret = connect(inet_sock2, (struct sockaddr *) &addrv4, sizeof(addrv4));
+	if (ret < 0) {
+		fail("Unable to connect to %s", ip);
+		goto error;
+	}
+
+	ret = connect(inet_sock3, (struct sockaddr *) &addrv4, sizeof(addrv4));
+	if (ret < 0) {
+		fail("Unable to connect to %s", ip);
+		goto error;
+	}
+
+	FD_SET(inet_sock, &readfds);
+	FD_SET(inet_sock2, &readfds);
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+	now = time(NULL);
+	ret = select(inet_sock2 + 1, &readfds, &writefds, &exceptfds, &tv);
+	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
+	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data needing reading");
+	ok(!FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
+	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket not in exception fd set");
+
+
 error:
 	if (inet_sock >= 0) {
+		close(inet_sock);
+	}
+	if (inet_sock2 >= 0) {
+		close(inet_sock);
+	}
+	if (inet_sock3 >= 0) {
 		close(inet_sock);
 	}
 	return;
