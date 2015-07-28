@@ -435,7 +435,7 @@ void connection_conn_list_find_and_replace_poll(struct pollfd *fds, nfds_t nfds,
 					/* This is a bug, but segfaulting is sad */
 					continue;
 				fds[j].fd = conn->tsocks_fd;
-				DBG("Replaced fd %d with %d in fd_set.", fd, conn->tsocks_fd);
+				DBG("Replaced fd %d with %d in pollfd.", fd, conn->tsocks_fd);
 				(*replaced)[rep_idx] = calloc(2, sizeof(***replaced));
 				if ((*replaced)[rep_idx] == NULL) {
 					*len = rep_idx;
