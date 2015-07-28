@@ -474,7 +474,7 @@ void connection_conn_list_find_and_replace_poll(struct pollfd *fds, nfds_t nfds,
 		*len = 0;
 		return;
 	}
-	for (i = 0; i < conn_list.head; i++) {
+	for (i = 0; i < conn_list.head + 1; i++) {
 		int fd = conn_list.fds[i];
 		if (fd == -1)
 			continue;
