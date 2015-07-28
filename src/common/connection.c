@@ -330,7 +330,7 @@ static void connection_conn_list_remove(int fd)
 	if (conn_list.len == 0 || conn_list.num_used == 0 ||
 	    conn_list.fds == NULL)
 		return;
-	for (i = 0; i < conn_list.head; i++) {
+	for (i = 0; i < conn_list.head + 1; i++) {
 		if (conn_list.fds[i] == fd) {
 			conn_list.fds[i] = -1;
 			conn_list.num_used--;
@@ -341,6 +341,7 @@ static void connection_conn_list_remove(int fd)
 				while (i > -1) {
 					if (conn_list.fds[i] != -1) {
 						conn_list.head = i;
+						break;
 					}
 					i--;
 				}
@@ -380,6 +381,9 @@ int connection_conn_list_find_and_replace_select(fd_set *fds,
 		if (FD_ISSET(fd, fds)) {
 			struct connection *conn;
 			conn = connection_find(fd);
+			if (conn == NULL)
+				/* This is a bug, but segfaulting is sad */
+				continue;
 			FD_CLR(fd, fds);
 			FD_SET(conn->tsocks_fd, fds);
 			DBG("Replaced fd %d with %d in fd_set.", fd, conn->tsocks_fd);
@@ -427,6 +431,9 @@ void connection_conn_list_find_and_replace_poll(struct pollfd *fds, nfds_t nfds,
 			if (fd == fds[j].fd) {
 				struct connection *conn;
 				conn = connection_find(fd);
+				if (conn == NULL)
+					/* This is a bug, but segfaulting is sad */
+					continue;
 				fds[j].fd = conn->tsocks_fd;
 				DBG("Replaced fd %d with %d in fd_set.", fd, conn->tsocks_fd);
 				(*replaced)[rep_idx] = calloc(2, sizeof(***replaced));
