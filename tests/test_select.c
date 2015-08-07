@@ -28,7 +28,7 @@
 
 #define NUM_TESTS 34
 
-#define TEST1_SETUP()					\
+#define TEST1_SETUP(granularity)			\
 	do {						\
 		FD_SET(pipe_fds[0], &readfds);		\
 		FD_SET(pipe_fds[1], &readfds);		\
@@ -37,7 +37,7 @@
 		FD_SET(pipe_fds[0], &exceptfds);	\
 		FD_SET(pipe_fds[1], &exceptfds);	\
 		tv.tv_sec = 0;				\
-		tv.tv_usec = 0;				\
+		tv.tv_ ##granularity = 0;		\
 		now = time(NULL);			\
 	} while (0)
 
@@ -55,11 +55,11 @@
 		ok(ret != 1, "Write failed on pipe.");	\
 	} while (0)
 
-#define TEST2_SETUP()				\
+#define TEST2_SETUP(granularity)		\
 	do {					\
 		FD_SET(pipe_fds[0], &readfds);	\
 		tv.tv_sec = 0;			\
-		tv.tv_usec = 0;			\
+		tv.tv_ ##granularity = 0;	\
 		now = time(NULL);		\
 	} while (0)				\
 
@@ -84,7 +84,7 @@
 		FD_ZERO(&exceptfds);	\
 	} while (0)
 
-#define TEST3_SETUP()						\
+#define TEST3_SETUP(granularity)				\
 	do {							\
 		/* Create inet socket. */			\
 		inet_sock = socket(AF_INET, SOCK_STREAM, 0);	\
@@ -117,7 +117,7 @@
 								\
 		FD_SET(inet_sock, &readfds);			\
 		tv.tv_sec = 0;					\
-		tv.tv_usec = 0;					\
+		tv.tv_ ##granularity = 0;			\
 		now = time(NULL);				\
 	} while (0)
 
@@ -134,12 +134,12 @@
 		   "inet socket not in exception fd set");	\
 	} while (0)
 
-#define TEST4_SETUP()				\
+#define TEST4_SETUP(granularity)		\
 	do {					\
 		FD_ZERO(&readfds);		\
 		FD_SET(inet_sock, &writefds);	\
 		tv.tv_sec = 0;			\
-		tv.tv_usec = 0;			\
+		tv.tv_ ##granularity = 0;	\
 		now = time(NULL);		\
 	} while (0)
 
@@ -156,12 +156,12 @@
 		   "inet socket not in exception fd set");	\
 	} while (0)
 
-#define TEST5_SETUP()				\
+#define TEST5_SETUP(granularity)		\
 	do {					\
 		FD_ZERO(&writefds);		\
 		FD_SET(inet_sock, &exceptfds);	\
 		tv.tv_sec = 0;			\
-		tv.tv_usec = 0;			\
+		tv.tv_ ##granularity = 0;	\
 		now = time(NULL);		\
 	} while (0)
 
@@ -179,7 +179,7 @@
 	} while (0)
 
 
-#define TEST6_SETUP()							\
+#define TEST6_SETUP(granularity)					\
 	do {								\
 		ret = connect(inet_sock2, (struct sockaddr *) &addrv4,	\
 			      sizeof(addrv4));				\
@@ -198,11 +198,11 @@
 		FD_SET(inet_sock, &readfds);				\
 		FD_SET(inet_sock2, &readfds);				\
 		tv.tv_sec = 0;						\
-		tv.tv_usec = 0;						\
+		tv.tv_ ##granularity = 0;				\
 		now = time(NULL);					\
 	} while (0)
 
-#define TEST7_SETUP()							\
+#define TEST7_SETUP(granularity)					\
 	do {								\
 		close(inet_sock3);					\
 		close(inet_sock2);					\
@@ -240,7 +240,7 @@
 		FD_SET(inet_sock, &readfds);				\
 		FD_SET(inet_sock2, &readfds);				\
 		tv.tv_sec = 0;						\
-		tv.tv_usec = 0;						\
+		tv.tv_ ##granularity = 0;				\
 		now = time(NULL);					\
 	} while (0)
 
@@ -265,35 +265,35 @@ static void test_select(void)
 	ret = getpeername(pipe_fds[0], NULL, NULL);
 	ok(ret == -1 && errno == ENOTSOCK, "Invalid socket fd");
 
-        TEST1_SETUP();
+        TEST1_SETUP(usec);
 
 	/* Now let's see if we return immediately and successfully */
 	ret = select(pipe_fds[1] + 1, &readfds, &writefds, &exceptfds, &tv);
 	TEST1_TESTS(select);
 
-	TEST2_SETUP();
+	TEST2_SETUP(usec);
 	ret = select(pipe_fds[1] + 1, &readfds, &writefds, &exceptfds, &tv);
 	TEST2_TESTS(select);
 
 	PIPE_SETS_REFRESH();
 
-	TEST3_SETUP();
+	TEST3_SETUP(usec);
 	ret = select(inet_sock + 1, &readfds, &writefds, &exceptfds, &tv);
 	TEST3_TESTS(select);
 
-	TEST4_SETUP();
+	TEST4_SETUP(usec);
 	ret = select(inet_sock + 1, &readfds, &writefds, &exceptfds, &tv);
 	TEST4_TESTS(select);
 
-	TEST5_SETUP();
+	TEST5_SETUP(usec);
 	ret = select(inet_sock + 1, &readfds, &writefds, &exceptfds, &tv);
 	TEST567_TESTS(select);
 
-	TEST6_SETUP();
+	TEST6_SETUP(usec);
 	ret = select(inet_sock2 + 1, &readfds, &writefds, &exceptfds, &tv);
 	TEST567_TESTS(select);
 
-	TEST7_SETUP();
+	TEST7_SETUP(usec);
 	ret = select(inet_sock2 + 1, &readfds, &writefds, &exceptfds, &tv);
 	TEST567_TESTS(select);
 
