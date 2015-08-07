@@ -237,7 +237,6 @@
 		now = time(NULL);					\
 	} while (0)
 
-
 static void test_poll(void)
 {
 	int pipe_fds[2], ret;
@@ -301,12 +300,81 @@ error:
 	return;
 }
 
+#if (defined(__linux__))
+static void test_ppoll(void)
+{
+	int pipe_fds[2], ret;
+	int inet_sock = -1, inet_sock2 = -1, inet_sock3 = -1;
+	struct sockaddr_in addrv4;
+	const char *ip = "93.95.227.222";
+	struct pollfd fds[3];
+	time_t now;
+	struct timespec tv = {0, 0};
+
+	ret = pipe(pipe_fds);
+	if (ret < 0) {
+		fail("Unable to create pipe");
+		goto error;
+	}
+
+	/* This test is to see if we go through the libc or not. */
+	ret = getpeername(pipe_fds[0], NULL, NULL);
+	ok(ret == -1 && errno == ENOTSOCK, "Invalid socket fd");
+
+	TEST1_SETUP();
+	/* Now let's see if we return immediately and successfully */
+	ret = ppoll(fds, 2, &tv, NULL);
+	TEST1_TESTS(ppoll);
+
+	TEST2_SETUP();
+	ret = ppoll(fds, 2, &tv, NULL);
+	TEST2_TESTS(ppoll);
+
+	PIPE_SETS_REFRESH();
+
+	TEST3_SETUP();
+	ret = ppoll(fds, 1, &tv, NULL);
+	TEST3_TESTS(ppoll);
+
+	TEST4_SETUP();
+	ret = ppoll(fds, 1, &tv, NULL);
+	TEST4_TESTS(ppoll);
+
+	TEST5_SETUP();
+	ret = ppoll(fds, 1, &tv, NULL);
+	TEST567_TESTS(ppoll);
+
+	TEST6_SETUP();
+	ret = ppoll(fds, 2, &tv, NULL);
+	TEST567_TESTS(ppoll);
+
+	TEST7_SETUP();
+	ret = ppoll(fds, 2, &tv, NULL);
+	TEST567_TESTS(ppoll);
+
+error:
+	if (inet_sock >= 0) {
+		close(inet_sock);
+	}
+	if (inet_sock2 >= 0) {
+		close(inet_sock);
+	}
+	if (inet_sock3 >= 0) {
+		close(inet_sock);
+	}
+	return;
+}
+#endif // __linux__
+
 int main(int argc, char **argv)
 {
 	/* Libtap call for the number of tests planned. */
-	plan_tests(NUM_TESTS);
+	plan_tests(NUM_TESTS*2);
 
 	test_poll();
+#if (defined(__linux__))
+	test_ppoll();
+#endif // __linux__
 
     return 0;
 }
