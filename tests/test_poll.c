@@ -19,10 +19,10 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <sys/socket.h>
-#include <poll.h>
 #include <unistd.h>
 
 #include <lib/torsocks.h>
+#include <poll.h>
 
 #include <tap/tap.h>
 
