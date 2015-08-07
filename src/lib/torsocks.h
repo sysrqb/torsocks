@@ -367,6 +367,9 @@ struct hostent **result, int *h_errnop
 #define LIBC_PSELECT_ARGS nfds, readfds, writefds, exceptfds, timeout, sigmask
 
 /* poll(2) */
+#if (defined(__linux__))
+#define _GNU_SOURCE
+#endif
 #include <poll.h>
 #define LIBC_POLL_NAME poll
 #define LIBC_POLL_NAME_STR XSTR(LIBC_POLL_NAME)
@@ -374,14 +377,6 @@ struct hostent **result, int *h_errnop
 #define LIBC_POLL_SIG \
         struct pollfd *fds, nfds_t nfds, int timeout
 #define LIBC_POLL_ARGS fds, nfds, timeout
-
-#define LIBC_PPOLL_NAME ppoll
-#define LIBC_PPOLL_NAME_STR XSTR(LIBC_PPOLL_NAME)
-#define LIBC_PPOLL_RET_TYPE int
-#define LIBC_PPOLL_SIG \
-        struct pollfd *fds, nfds_t nfds, const struct timespec *timeout_ts, \
-	const sigset_t *sigmask
-#define LIBC_PPOLL_ARGS fds, nfds, timeout_ts, sigmask
 
 #else
 #error "OS not supported."
@@ -418,6 +413,20 @@ struct hostent **result, int *h_errnop
 
 /* gethostbyname(3) - DEPRECATED in glibc. */
 #include <netdb.h>
+
+
+/* ppoll(2) */
+#define _GNU_SOURCE
+#include <poll.h>
+
+#define LIBC_PPOLL_NAME ppoll
+#define LIBC_PPOLL_NAME_STR XSTR(LIBC_PPOLL_NAME)
+#define LIBC_PPOLL_RET_TYPE int
+#define LIBC_PPOLL_SIG \
+        struct pollfd *fds, nfds_t nfds, const struct timespec *timeout_ts, \
+	const sigset_t *sigmask
+#define LIBC_PPOLL_ARGS fds, nfds, timeout_ts, sigmask
+
 
 
 #endif /* __linux__ */
@@ -708,10 +717,12 @@ TSOCKS_DECL(poll, LIBC_POLL_RET_TYPE, LIBC_POLL_SIG)
 		LIBC_POLL_NAME(LIBC_POLL_SIG)
 
 /* ppoll(2) */
+#if (defined(__linux__))
 extern TSOCKS_LIBC_DECL(ppoll, LIBC_PPOLL_RET_TYPE, LIBC_PPOLL_SIG)
 TSOCKS_DECL(ppoll, LIBC_PPOLL_RET_TYPE, LIBC_PPOLL_SIG)
 #define LIBC_PPOLL_DECL LIBC_PPOLL_RET_TYPE \
 		LIBC_PPOLL_NAME(LIBC_PPOLL_SIG)
+#endif
 
 /*
  * Those are actions to do during the lookup process of libc symbols. For
