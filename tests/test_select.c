@@ -28,6 +28,223 @@
 
 #define NUM_TESTS 34
 
+#define TEST1_SETUP()					\
+	do {						\
+		FD_SET(pipe_fds[0], &readfds);		\
+		FD_SET(pipe_fds[1], &readfds);		\
+		FD_SET(pipe_fds[0], &writefds);		\
+		FD_SET(pipe_fds[1], &writefds);		\
+		FD_SET(pipe_fds[0], &exceptfds);	\
+		FD_SET(pipe_fds[1], &exceptfds);	\
+		tv.tv_sec = 0;				\
+		tv.tv_usec = 0;				\
+		now = time(NULL);			\
+	} while (0)
+
+#define TEST1_TESTS()					\
+	do {						\
+		ok(ret != -1 && (time(NULL) - now) < 2,	\
+		   "Select returned without error");	\
+		ok(!FD_ISSET(pipe_fds[0], &readfds),	\
+		   "Read end of pipe has no data");	\
+		ok(FD_ISSET(pipe_fds[1], &writefds),	\
+		   "Write end of pipe is writable");	\
+							\
+		ret = write(pipe_fds[1], "test",	\
+			    strlen("test"));		\
+		ok(ret != 1, "Write failed on pipe.");	\
+	} while (0)
+
+#define TEST2_SETUP()				\
+	do {					\
+		FD_SET(pipe_fds[0], &readfds);	\
+		tv.tv_sec = 0;			\
+		tv.tv_usec = 0;			\
+		now = time(NULL);		\
+	} while (0)				\
+
+#define TEST2_TESTS()						\
+	do {							\
+		ok(ret != -1 && (time(NULL) - now) < 2,		\
+		   "Select returned without error, again");	\
+		ok(FD_ISSET(pipe_fds[0], &readfds),		\
+		   "Read end of pipe has data");		\
+		ok(FD_ISSET(pipe_fds[1], &writefds),		\
+		   "Write end of pipe is still writable");	\
+	} while (0)
+
+#define PIPE_SETS_REFRESH()		\
+	do {				\
+		close(pipe_fds[0]);	\
+		close(pipe_fds[1]);	\
+		pipe_fds[0] = -1;	\
+		pipe_fds[1] = -1;	\
+		FD_ZERO(&readfds);	\
+		FD_ZERO(&writefds);	\
+		FD_ZERO(&exceptfds);	\
+	} while (0)
+
+#define TEST3_SETUP()						\
+	do {							\
+		/* Create inet socket. */			\
+		inet_sock = socket(AF_INET, SOCK_STREAM, 0);	\
+		ok(inet_sock >= 0, "Inet socket created");	\
+								\
+		/* Create another inet socket. */		\
+		inet_sock2 = socket(AF_INET, SOCK_STREAM, 0);	\
+		ok(inet_sock2 >= 0, "Inet socket 2 created");	\
+								\
+		/* Create another inet socket. */		\
+		inet_sock3 = socket(AF_INET, SOCK_STREAM, 0);	\
+		ok(inet_sock3 >= 0, "Inet socket 3 created");	\
+								\
+		/* Connect socket through Tor so we can test	\
+		 * the wrapper. */ 				\
+		addrv4.sin_family = AF_INET;			\
+		addrv4.sin_port = htons(443);			\
+		inet_pton(addrv4.sin_family, ip,		\
+			  &addrv4.sin_addr); 			\
+		memset(addrv4.sin_zero, 0,			\
+			sizeof(addrv4.sin_zero));		\
+								\
+		ret = connect(inet_sock,			\
+			      (struct sockaddr *) &addrv4,	\
+			      sizeof(addrv4));			\
+		if (ret < 0) {					\
+			fail("Unable to connect to %s", ip);	\
+			goto error;				\
+		}						\
+								\
+		FD_SET(inet_sock, &readfds);			\
+		tv.tv_sec = 0;					\
+		tv.tv_usec = 0;					\
+		now = time(NULL);				\
+	} while (0)
+
+#define TEST3_TESTS()						\
+	do {							\
+		ok(ret != -1 && (time(NULL) - now) < 2,		\
+		   "Select with inet socket returned without "	\
+		   "error");					\
+		ok(!FD_ISSET(inet_sock, &readfds),		\
+		   "inet socket has no data needing reading");	\
+		ok(!FD_ISSET(inet_sock, &writefds),		\
+		   "inet socket not in writable fd set");	\
+		ok(!FD_ISSET(inet_sock, &exceptfds),		\
+		   "inet socket not in exception fd set");	\
+	} while (0)
+
+#define TEST4_SETUP()				\
+	do {					\
+		FD_ZERO(&readfds);		\
+		FD_SET(inet_sock, &writefds);	\
+		tv.tv_sec = 0;			\
+		tv.tv_usec = 0;			\
+		now = time(NULL);		\
+	} while (0)
+
+#define TEST4_TESTS()						\
+	do {							\
+		ok(ret != -1 && (time(NULL) - now) < 2,		\
+		   "Select with inet socket returned without "	\
+		   "error");					\
+		ok(!FD_ISSET(inet_sock, &readfds),		\
+		   "inet socket has no data needing reading");	\
+		ok(FD_ISSET(inet_sock, &writefds),		\
+		   "inet socket not in writable fd set");	\
+		ok(!FD_ISSET(inet_sock, &exceptfds),		\
+		   "inet socket not in exception fd set");	\
+	} while (0)
+
+#define TEST5_SETUP()				\
+	do {					\
+		FD_ZERO(&writefds);		\
+		FD_SET(inet_sock, &exceptfds);	\
+		tv.tv_sec = 0;			\
+		tv.tv_usec = 0;			\
+		now = time(NULL);		\
+	} while (0)
+
+#define TEST567_TESTS()						\
+	do {							\
+		ok(ret != -1 && (time(NULL) - now) < 2,		\
+		   "Select with inet socket returned without "	\
+		   "error");					\
+		ok(!FD_ISSET(inet_sock, &readfds),		\
+		   "inet socket has no data needing reading");	\
+		ok(!FD_ISSET(inet_sock, &writefds),		\
+		   "inet socket not in writable fd set");	\
+		ok(!FD_ISSET(inet_sock, &exceptfds),		\
+		   "inet socket has no exception");		\
+	} while (0)
+
+
+#define TEST6_SETUP()							\
+	do {								\
+		ret = connect(inet_sock2, (struct sockaddr *) &addrv4,	\
+			      sizeof(addrv4));				\
+		if (ret < 0) {						\
+			fail("Unable to connect to %s", ip);		\
+			goto error;					\
+		}							\
+									\
+		ret = connect(inet_sock3, (struct sockaddr *) &addrv4,	\
+			      sizeof(addrv4));				\
+		if (ret < 0) {						\
+			fail("Unable to connect to %s", ip);		\
+			goto error;					\
+		}							\
+									\
+		FD_SET(inet_sock, &readfds);				\
+		FD_SET(inet_sock2, &readfds);				\
+		tv.tv_sec = 0;						\
+		tv.tv_usec = 0;						\
+		now = time(NULL);					\
+	} while (0)
+
+#define TEST7_SETUP()							\
+	do {								\
+		close(inet_sock3);					\
+		close(inet_sock2);					\
+									\
+		ret = pipe(pipe_fds);					\
+		if (ret < 0) {						\
+			fail("Unable to create pipe 2");		\
+			goto error;					\
+		}							\
+		ok(pipe_fds[0] > 0 && pipe_fds[1] > 0,			\
+		   "new pipe created");					\
+									\
+		/* Create another inet socket. */			\
+		inet_sock2 = socket(AF_INET, SOCK_STREAM, 0);		\
+		ok(inet_sock2 >= 0, "Inet socket 2 created");		\
+									\
+		/* Create another inet socket. */			\
+		inet_sock3 = socket(AF_INET, SOCK_STREAM, 0);		\
+		ok(inet_sock3 >= 0, "Inet socket 3 created");		\
+									\
+		ret = connect(inet_sock2, (struct sockaddr *) &addrv4,	\
+			      sizeof(addrv4));				\
+		if (ret < 0) {						\
+			fail("Unable to connect to %s", ip);		\
+			goto error;					\
+		}							\
+									\
+		ret = connect(inet_sock3, (struct sockaddr *) &addrv4,	\
+			      sizeof(addrv4));				\
+		if (ret < 0) {						\
+			fail("Unable to connect to %s", ip);		\
+			goto error;					\
+		}							\
+									\
+		FD_SET(inet_sock, &readfds);				\
+		FD_SET(inet_sock2, &readfds);				\
+		tv.tv_sec = 0;						\
+		tv.tv_usec = 0;						\
+		now = time(NULL);					\
+	} while (0)
+
+
 static void test_select(void)
 {
 	int pipe_fds[2], ret;
@@ -48,160 +265,37 @@ static void test_select(void)
 	ret = getpeername(pipe_fds[0], NULL, NULL);
 	ok(ret == -1 && errno == ENOTSOCK, "Invalid socket fd");
 
-	FD_SET(pipe_fds[0], &readfds);
-	FD_SET(pipe_fds[1], &readfds);
-	FD_SET(pipe_fds[0], &writefds);
-	FD_SET(pipe_fds[1], &writefds);
-	FD_SET(pipe_fds[0], &exceptfds);
-	FD_SET(pipe_fds[1], &exceptfds);
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-	now = time(NULL);
+        TEST1_SETUP();
 
 	/* Now let's see if we return immediately and successfully */
 	ret = select(pipe_fds[1] + 1, &readfds, &writefds, &exceptfds, &tv);
-	ok(ret != -1 && (time(NULL) - now) < 2, "Select returned without error");
-	ok(!FD_ISSET(pipe_fds[0], &readfds), "Read end of pipe has no data");
-	ok(FD_ISSET(pipe_fds[1], &writefds), "Write end of pipe is writable");
+	TEST1_TESTS();
 
-	ret = write(pipe_fds[1], "test", strlen("test"));
-	ok(ret != 1, "Write failed on pipe.");
-	FD_SET(pipe_fds[0], &readfds);
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-	now = time(NULL);
+	TEST2_SETUP();
 	ret = select(pipe_fds[1] + 1, &readfds, &writefds, &exceptfds, &tv);
-	ok(ret != -1 && (time(NULL) - now) < 2, "Select returned without error, again");
-	ok(FD_ISSET(pipe_fds[0], &readfds), "Read end of pipe has data");
-	ok(FD_ISSET(pipe_fds[1], &writefds), "Write end of pipe is still writable");
+	TEST2_TESTS();
 
-	close(pipe_fds[0]);
-	close(pipe_fds[1]);
-	pipe_fds[0] = -1;
-	pipe_fds[1] = -1;
-	FD_ZERO(&readfds);
-	FD_ZERO(&writefds);
-	FD_ZERO(&exceptfds);
+	PIPE_SETS_REFRESH();
 
-	/* Create inet socket. */
-	inet_sock = socket(AF_INET, SOCK_STREAM, 0);
-	ok(inet_sock >= 0, "Inet socket created");
-
-	/* Create another inet socket. */
-	inet_sock2 = socket(AF_INET, SOCK_STREAM, 0);
-	ok(inet_sock2 >= 0, "Inet socket 2 created");
-
-	/* Create another inet socket. */
-	inet_sock3 = socket(AF_INET, SOCK_STREAM, 0);
-	ok(inet_sock3 >= 0, "Inet socket 3 created");
-
-	/* Connect socket through Tor so we can test the wrapper. */
-	addrv4.sin_family = AF_INET;
-	addrv4.sin_port = htons(443);
-	inet_pton(addrv4.sin_family, ip, &addrv4.sin_addr);
-	memset(addrv4.sin_zero, 0, sizeof(addrv4.sin_zero));
-
-	ret = connect(inet_sock, (struct sockaddr *) &addrv4, sizeof(addrv4));
-	if (ret < 0) {
-		fail("Unable to connect to %s", ip);
-		goto error;
-	}
-
-	FD_SET(inet_sock, &readfds);
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-	now = time(NULL);
+	TEST3_SETUP();
 	ret = select(inet_sock + 1, &readfds, &writefds, &exceptfds, &tv);
-	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
-	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data needing reading");
-	ok(!FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
-	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket not in exception fd set");
+	TEST3_TESTS();
 
-	FD_ZERO(&readfds);
-	FD_SET(inet_sock, &writefds);
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-	now = time(NULL);
+	TEST4_SETUP();
 	ret = select(inet_sock + 1, &readfds, &writefds, &exceptfds, &tv);
-	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
-	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data needing reading");
-	ok(FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
-	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket not in exception fd set");
+	TEST4_TESTS();
 
-	FD_ZERO(&writefds);
-	FD_SET(inet_sock, &exceptfds);
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-	now = time(NULL);
+	TEST5_SETUP();
 	ret = select(inet_sock + 1, &readfds, &writefds, &exceptfds, &tv);
-	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
-	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data needing reading");
-	ok(!FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
-	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket has no exception");
+	TEST567_TESTS();
 
-	ret = connect(inet_sock2, (struct sockaddr *) &addrv4, sizeof(addrv4));
-	if (ret < 0) {
-		fail("Unable to connect to %s", ip);
-		goto error;
-	}
-
-	ret = connect(inet_sock3, (struct sockaddr *) &addrv4, sizeof(addrv4));
-	if (ret < 0) {
-		fail("Unable to connect to %s", ip);
-		goto error;
-	}
-
-	FD_SET(inet_sock, &readfds);
-	FD_SET(inet_sock2, &readfds);
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-	now = time(NULL);
+	TEST6_SETUP();
 	ret = select(inet_sock2 + 1, &readfds, &writefds, &exceptfds, &tv);
-	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
-	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data needing reading");
-	ok(!FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
-	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket not in exception fd set");
+	TEST567_TESTS();
 
-	close(inet_sock3);
-	close(inet_sock2);
-
-	ret = pipe(pipe_fds);
-	if (ret < 0) {
-		fail("Unable to create pipe 2");
-		goto error;
-	}
-	ok(pipe_fds[0] > 0 && pipe_fds[1] > 0, "new pipe created");
-
-	/* Create another inet socket. */
-	inet_sock2 = socket(AF_INET, SOCK_STREAM, 0);
-	ok(inet_sock2 >= 0, "Inet socket 2 created");
-
-	/* Create another inet socket. */
-	inet_sock3 = socket(AF_INET, SOCK_STREAM, 0);
-	ok(inet_sock3 >= 0, "Inet socket 3 created");
-
-	ret = connect(inet_sock2, (struct sockaddr *) &addrv4, sizeof(addrv4));
-	if (ret < 0) {
-		fail("Unable to connect to %s", ip);
-		goto error;
-	}
-
-	ret = connect(inet_sock3, (struct sockaddr *) &addrv4, sizeof(addrv4));
-	if (ret < 0) {
-		fail("Unable to connect to %s", ip);
-		goto error;
-	}
-
-	FD_SET(inet_sock, &readfds);
-	FD_SET(inet_sock2, &readfds);
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-	now = time(NULL);
+	TEST7_SETUP();
 	ret = select(inet_sock2 + 1, &readfds, &writefds, &exceptfds, &tv);
-	ok(ret != -1 && (time(NULL) - now) < 2, "Select with inet socket returned without error");
-	ok(!FD_ISSET(inet_sock, &readfds), "inet socket has no data needing reading");
-	ok(!FD_ISSET(inet_sock, &writefds), "inet socket not in writable fd set");
-	ok(!FD_ISSET(inet_sock, &exceptfds), "inet socket not in exception fd set");
+	TEST567_TESTS();
 
 
 error:
