@@ -55,6 +55,9 @@ struct connection_addr {
 	} u;
 };
 
+/* Forward declaration so we avoid cyclic dependencies */
+struct event_specifier;
+
 /*
  * Connection object representing a connect we did to the Tor network from a
  * connect(2) hijacked call.
@@ -78,6 +81,9 @@ struct connection {
 	 * the refcount to 0 so to delete it.
 	 */
 	struct ref refcount;
+
+	/* List of events requested for this connection */
+	struct event_specifier *events;
 
 	/* Hash table node. */
 	HT_ENTRY(connection) node;
