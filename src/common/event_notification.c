@@ -29,6 +29,8 @@ tsocks_find_event_specifier_by_identifier(struct event_specifier *events,
 					  event_id_t id)
 {
 	struct event_specifier *event = NULL;
+	DBG("[events] Searching for evspec by id: %u, events %s%#x", id,
+	    events == NULL ? "0x" : "", events);
 	if (events == NULL)
 		return NULL;
 	for (event = events; event != NULL; event = event->next) {
@@ -101,6 +103,7 @@ void tsocks_add_event_on_connection(struct connection *conn,
 				    struct event_specifier *evspec)
 {
 	struct event_specifier *cur;
+	int i = 0;
 	if (conn->events == NULL) {
 		conn->events = evspec;
 		goto done;
@@ -110,8 +113,10 @@ void tsocks_add_event_on_connection(struct connection *conn,
 			cur->next = evspec;
 			goto done;
 		}
+		i++;
 	}
 done:
+	DBG("[events] Added evspec %#x at %d in linked-list.", evspec, i);
 	return;
 }
 
@@ -206,6 +211,7 @@ int tsocks_destroy_event(struct connection *conn,
 	struct event_specifier *curr, *prev = NULL;
 	int destroyed = 0;
 	if (evspec == NULL) {
+		DBG("[events] Can't destroy NULL evspec");
 		return -1;
 	}
 	if (!evspec->marked_event_for_destroy) {
@@ -213,6 +219,7 @@ int tsocks_destroy_event(struct connection *conn,
 		return -1;
 	}
 
+	DBG("[events] Destroying evspec %#x", evspec);
 	for (curr = conn->events; curr != NULL; curr = curr->next) {
 		if (curr == evspec) {
 			if (prev != NULL) {
@@ -232,8 +239,8 @@ int tsocks_destroy_event(struct connection *conn,
 
 	if (!destroyed) {
 		/* It seems there's a bug :/ */
-		DBG("Received request for destroying event, but it's not "
-		    "in our list!");
+		DBG("[events] Received request for destroying event, but "
+		    "it's not in our list!");
 		return -1;
 	}
 	return 0;
@@ -362,12 +369,12 @@ int tsocks_modify_event(int efd, int fd, int op, struct event_specifier *evspec,
 	int success = -1;
 	errno = 0;
 	if (evspec == NULL) {
-		DBG("That's strange, a nul evspec is only good for crashing.");
+		DBG("[events] That's strange, a nul evspec is only good for crashing.");
 		return -1;
 	}
 	if (evspec->efd != efd) {
 		const char *name = tsocks_event_mech_to_string(evspec->mech);
-		DBG("That's strange, the %s file descriptor changed. That "
+		DBG("[events] That's strange, the %s file descriptor changed. That "
 		    "shouldn't happen without torsocks detecting it.",
 		    name != NULL ? name : "<unrecognized mech>");
 		/* This isn't good, but it isn't fail worthy, but it is
@@ -382,7 +389,7 @@ int tsocks_modify_event(int efd, int fd, int op, struct event_specifier *evspec,
 		success = modify_event_epoll(fd, op, evspec, epoll_event, conn);
 		break;
 	default:
-		DBG("Unknown mechanism can't be modified: %d", evspec->mech);
+		DBG("[events] Unknown mechanism can't be modified: %d", evspec->mech);
 		break;
 	}
 	return success;

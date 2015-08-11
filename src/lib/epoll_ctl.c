@@ -45,8 +45,9 @@ LIBC_EPOLL_CTL_RET_TYPE tsocks_epoll_ctl(LIBC_EPOLL_CTL_SIG)
 		return tsocks_libc_epoll_ctl(LIBC_EPOLL_CTL_ARGS);
 	}
 	fd = conn->tsocks_fd;
-	DBG("Found conn %#x with tsocks fd %d", conn, fd);
+	DBG("[epoll_ctl] Found conn %#x with tsocks fd %d", conn, fd);
 	if (EPOLL_CTL_ADD == op) {
+		DBG("[epoll_ctl] Adding (%d) new event.", EPOLL_CTL_ADD == op);
 		evspec = tsocks_create_new_event_epoll(epfd,
 						event->events,
 						event->data);
@@ -56,6 +57,7 @@ LIBC_EPOLL_CTL_RET_TYPE tsocks_epoll_ctl(LIBC_EPOLL_CTL_SIG)
 			errno = ENOMEM;
 			return -1;
 		}
+		DBG("[epoll_ctl] Created new evspec %#x", evspec);
 		tsocks_add_event_on_connection(conn, evspec);
 	} else if (EPOLL_CTL_DEL == op) {
 		evspec = tsocks_find_event_specifier_by_efd(conn->events,
