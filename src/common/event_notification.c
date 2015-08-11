@@ -135,6 +135,7 @@ tsocks_create_new_event_epoll(int epfd, uint32_t events, epoll_data_t data)
 	spec->efd = epfd;
 	spec->filters = events;
 	spec->id = data;
+	spec->marked_event_for_destroy = 0;
 	spec->next = NULL;
 	return spec;
 #else
@@ -161,6 +162,7 @@ tsocks_create_new_event_kqueue(int kq, uintptr_t id, int16_t filter)
 	spec->efd = kq;
 	spec->filters |= 1 << filter;
 	spec->id = id;
+	spec->marked_event_for_destroy = 0;
 	spec->next = NULL;
 	return spec;
 #else
@@ -206,6 +208,11 @@ int tsocks_destroy_event(struct connection *conn,
 	if (evspec == NULL) {
 		return -1;
 	}
+	if (!evspec->marked_event_for_destroy) {
+		DBG("[events] evspec %#x not marked for destroy", evspec);
+		return -1;
+	}
+
 	for (curr = conn->events; curr != NULL; curr = curr->next) {
 		if (curr == evspec) {
 			if (prev != NULL) {
