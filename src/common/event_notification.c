@@ -179,7 +179,8 @@ tsocks_create_new_event_kqueue64(int kq, uint64_t id, int16_t filter)
  * from the list and free it.
  * Return -1 on failure, return 0 on success.
  */
-static int destroy_event(struct connection *conn,
+ATTR_HIDDEN
+int tsocks_destroy_event(struct connection *conn,
 			 struct event_specifier *evspec)
 {
 	struct event_specifier *curr, *prev = NULL;
@@ -249,7 +250,7 @@ static int modify_event_kqueue(struct event_specifier *evspec,
 	} else if (kev->flags & EV_DELETE) {
 		evspec->filters &= ~(1 << -kev->filter);
 		if (evspec->filters == 0 && evspec->oneshot_filters == 0) {
-			destroy_event(evspec);
+			evspec->marked_event_for_destroy = 1;
 		}
 	}
 	} else if (kev->flags & EV_ONESHOT) {
@@ -277,20 +278,25 @@ static int modify_event_epoll(int fd, int op, struct event_specifier *evspec,
 				struct connection *conn)
 {
 #if defined(__linux__)
+	errno = 0;
 	if (event == NULL) {
 		DBG("[epoll] Can't modify evspec when given NULL event pointer. :(");
+		errno = EINVAL;
 		return -1;
 	}
 	if (evspec == NULL) {
 		DBG("[epoll] Can't modify evspec when given NULL evspec pointer. :(");
+		errno = EINVAL;
 		return -1;
 	}
 	if (conn->app_fd != fd) {
 		DBG("[epoll] This kev's ID doesn't match what we know. Abort.");
+		errno = EINVAL;
 		return -1;
 	}
 	if (op != EPOLL_CTL_ADD || op != EPOLL_CTL_MOD || op != EPOLL_CTL_DEL) {
 		DBG("[epoll] Operation not recognized or supported. Skipping.");
+		errno = EINVAL;
 		return -1;
 	}
 	if (op == EPOLL_CTL_ADD || op == EPOLL_CTL_MOD) {
@@ -301,7 +307,7 @@ static int modify_event_epoll(int fd, int op, struct event_specifier *evspec,
 		evspec->filters |= event->events;
 	} else {
 		/* Should only be EPOLL_CTL_DEL */
-		destroy_event(conn, evspec);
+		evspec->marked_event_for_destroy = 1;
 	}
 	return 0;
 #else

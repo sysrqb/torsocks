@@ -64,6 +64,9 @@ struct event_specifier {
 	uint32_t oneshot_filters;
 	/* The identifier provided by the application */
 	event_id_t id;
+	/* Flags that this evspec should be destroyed if the syscall
+	 * returns successfully */
+	int marked_event_for_destroy;
 	/* Next event spec in linked-list */
 	struct event_specifier *next;
 };
@@ -80,6 +83,7 @@ struct event_specifier *
 tsocks_create_new_event_kqueue(int kq, uintptr_t id, int16_t filter);
 struct event_specifier *
 tsocks_create_new_event_kqueue64(int kq, uint64_t id, int16_t filter);
+int tsocks_destroy_event(struct connection *conn, struct event_specifier *evspec);
 int tsocks_modify_event(int efd, int fd, int op, struct event_specifier *evspec,
 			const struct kevent *kev,
 			const struct epoll_event *epoll_event,

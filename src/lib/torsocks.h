@@ -427,7 +427,43 @@ struct hostent **result, int *h_errnop
 	const sigset_t *sigmask
 #define LIBC_PPOLL_ARGS fds, nfds, timeout_ts, sigmask
 
+/* epoll_create(2) */
+#include <sys/epoll.h>
+#define LIBC_EPOLL_CREATE_NAME epoll_create
+#define LIBC_EPOLL_CREATE_NAME_STR XSTR(LIBC_EPOLL_CREATE_NAME)
+#define LIBC_EPOLL_CREATE_RET_TYPE int
+#define LIBC_EPOLL_CREATE_SIG int size
+#define LIBC_EPOLL_CREATE_ARGS size
 
+#define LIBC_EPOLL_CREATE1_NAME epoll_create1
+#define LIBC_EPOLL_CREATE1_NAME_STR XSTR(LIBC_EPOLL_CREATE1_NAME)
+#define LIBC_EPOLL_CREATE1_RET_TYPE int
+#define LIBC_EPOLL_CREATE1_SIG int flags
+#define LIBC_EPOLL_CREATE1_ARGS flags
+
+/* epoll_ctl(2) */
+#include <sys/epoll.h>
+#define LIBC_EPOLL_CTL_NAME epoll_ctl
+#define LIBC_EPOLL_CTL_NAME_STR XSTR(LIBC_EPOLL_CTL_NAME)
+#define LIBC_EPOLL_CTL_RET_TYPE int
+#define LIBC_EPOLL_CTL_SIG int epfd, int op, int fd, struct epoll_event *event
+#define LIBC_EPOLL_CTL_ARGS epfd, op, fd, event
+
+/* epoll_wait(2) */
+#include <sys/epoll.h>
+#define LIBC_EPOLL_WAIT_NAME epoll_wait
+#define LIBC_EPOLL_WAIT_NAME_STR XSTR(LIBC_EPOLL_WAIT_NAME) 
+#define LIBC_EPOLL_WAIT_RET_TYPE int
+#define LIBC_EPOLL_WAIT_SIG int epfd, struct epoll_event *events, int maxevents, \
+			int timeout
+#define LIBC_EPOLL_WAIT_ARGS epfd, events, maxevents, timeout
+
+#define LIBC_EPOLL_PWAIT_NAME epoll_pwait
+#define LIBC_EPOLL_PWAIT_NAME_STR XSTR(LIBC_EPOLL_PWAIT_NAME) 
+#define LIBC_EPOLL_PWAIT_RET_TYPE int
+#define LIBC_EPOLL_PWAIT_SIG int epfd, struct epoll_event *events, int maxevents, \
+			int timeout, const sigset_t *sigmask
+#define LIBC_EPOLL_PWAIT_ARGS epfd, events, maxevents, timeout, sigmask
 
 #endif /* __linux__ */
 
@@ -723,6 +759,41 @@ TSOCKS_DECL(ppoll, LIBC_PPOLL_RET_TYPE, LIBC_PPOLL_SIG)
 #define LIBC_PPOLL_DECL LIBC_PPOLL_RET_TYPE \
 		LIBC_PPOLL_NAME(LIBC_PPOLL_SIG)
 #endif
+
+/* epoll_create(2) */
+#if (defined(__linux__))
+extern TSOCKS_LIBC_DECL(epoll_create, LIBC_EPOLL_CREATE_RET_TYPE, LIBC_EPOLL_CREATE_SIG)
+TSOCKS_DECL(epoll_create, LIBC_EPOLL_CREATE_RET_TYPE, LIBC_EPOLL_CREATE_SIG)
+#define LIBC_EPOLL_CREATE_DECL LIBC_EPOLL_CREATE_RET_TYPE \
+		LIBC_EPOLL_CREATE_NAME(LIBC_EPOLL_CREATE_SIG)
+
+extern TSOCKS_LIBC_DECL(epoll_create1, LIBC_EPOLL_CREATE1_RET_TYPE, LIBC_EPOLL_CREATE1_SIG)
+TSOCKS_DECL(epoll_create1, LIBC_EPOLL_CREATE1_RET_TYPE, LIBC_EPOLL_CREATE1_SIG)
+#define LIBC_EPOLL_CREATE1_DECL LIBC_EPOLL_CREATE1_RET_TYPE \
+		LIBC_EPOLL_CREATE1_NAME(LIBC_EPOLL_CREATE1_SIG)
+#endif
+
+/* epoll_ctl(2) */
+#if (defined(__linux__))
+extern TSOCKS_LIBC_DECL(epoll_ctl, LIBC_EPOLL_CTL_RET_TYPE, LIBC_EPOLL_CTL_SIG)
+TSOCKS_DECL(epoll_ctl, LIBC_EPOLL_CTL_RET_TYPE, LIBC_EPOLL_CTL_SIG)
+#define LIBC_EPOLL_CTL_DECL LIBC_EPOLL_CTL_RET_TYPE \
+		LIBC_EPOLL_CTL_NAME(LIBC_EPOLL_CTL_SIG)
+#endif
+
+/* epoll_wait(2) */
+#if (defined(__linux__))
+extern TSOCKS_LIBC_DECL(epoll_wait, LIBC_EPOLL_WAIT_RET_TYPE, LIBC_EPOLL_WAIT_SIG)
+TSOCKS_DECL(epoll_wait, LIBC_EPOLL_WAIT_RET_TYPE, LIBC_EPOLL_WAIT_SIG)
+#define LIBC_EPOLL_WAIT_DECL LIBC_EPOLL_WAIT_RET_TYPE \
+		LIBC_EPOLL_WAIT_NAME(LIBC_EPOLL_WAIT_SIG)
+
+extern TSOCKS_LIBC_DECL(epoll_pwait, LIBC_EPOLL_PWAIT_RET_TYPE, LIBC_EPOLL_PWAIT_SIG)
+TSOCKS_DECL(epoll_pwait, LIBC_EPOLL_PWAIT_RET_TYPE, LIBC_EPOLL_PWAIT_SIG)
+#define LIBC_EPOLL_PWAIT_DECL LIBC_EPOLL_PWAIT_RET_TYPE \
+		LIBC_EPOLL_PWAIT_NAME(LIBC_EPOLL_PWAIT_SIG)
+#endif
+
 
 /*
  * Those are actions to do during the lookup process of libc symbols. For
