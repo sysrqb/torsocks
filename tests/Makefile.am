@@ -6,7 +6,7 @@ LIBTAP=$(top_builddir)/tests/utils/tap/libtap.la
 
 LIBTORSOCKS=$(top_builddir)/src/lib/libtorsocks.la
 
-noinst_PROGRAMS = test_dns test_socket test_connect test_fd_passing test_getpeername test_select test_poll
+noinst_PROGRAMS = test_dns test_socket test_connect test_fd_passing test_getpeername test_select test_poll test_epoll
 
 test_dns_SOURCES = test_dns.c
 test_dns_LDADD = $(LIBTAP) $(LIBTORSOCKS)
@@ -28,6 +28,9 @@ test_select_LDADD = $(LIBTAP) $(LIBTORSOCKS)
 
 test_poll_SOURCES = test_poll.c
 test_poll_LDADD = $(LIBTAP) $(LIBTORSOCKS)
+
+test_epoll_SOURCES = test_epoll.c
+test_epoll_LDADD = $(LIBTAP) $(LIBTORSOCKS)
 
 check-am:
 	./run.sh test_list
