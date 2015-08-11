@@ -539,6 +539,7 @@ void connection_destroy(struct connection *conn)
 		return;
 	}
 
+	tsocks_destroy_all_events(conn);
 	free(conn->dest_addr.hostname.addr);
 	free(conn);
 }

@@ -87,6 +87,7 @@ tsocks_create_new_event_kqueue(int kq, uintptr_t id, int16_t filter);
 struct event_specifier *
 tsocks_create_new_event_kqueue64(int kq, uint64_t id, int16_t filter);
 int tsocks_destroy_event(struct connection *conn, struct event_specifier *evspec);
+int tsocks_destroy_all_events(struct connection *conn);
 int tsocks_modify_event(int efd, int fd, int op, struct event_specifier *evspec,
 			const struct kevent *kev,
 			const struct epoll_event *epoll_event,

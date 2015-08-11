@@ -247,6 +247,27 @@ int tsocks_destroy_event(struct connection *conn,
 }
 
 /*
+ * Destroy all evspec's in the conn's linked-list.
+ * Return -1 on failure, return 0 on success.
+ */
+ATTR_HIDDEN
+int tsocks_destroy_all_events(struct connection *conn)
+{
+	struct event_specifier *evspec, *prev_evspec;
+
+	if (conn == NULL)
+		return -1;
+	evspec = conn->events;
+	while (evspec != NULL) {
+		evspec->marked_event_for_destroy = 1;
+		prev_evspec = evspec;
+		evspec = evspec->next;
+		tsocks_destroy_event(conn, prev_evspec);
+	}
+	return 0;
+}
+
+/*
  * Modify evspec by the provided kevent kev. If the requested modification
  * isn't add, delete, or oneshot then do nothing. If the operation is
  * add, then add the new filter in evspec. Delete deletes the filter from
