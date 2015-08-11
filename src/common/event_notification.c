@@ -38,6 +38,24 @@ tsocks_find_event_specifier_by_identifier(struct event_specifier *events,
 	return NULL;
 }
 
+/* Find and return an event specifier from the linked-list, or return NULL */
+ATTR_HIDDEN
+struct event_specifier *
+tsocks_find_event_specifier_by_efd(struct event_specifier *events,
+				   int efd)
+{
+	struct event_specifier *event = NULL;
+	DBG("[events] Searching for evspec by epd: %d, events %s%#x", efd,
+	    events == NULL ? "0x" : "", events);
+	if (events == NULL)
+		return NULL;
+	for (event = events; event != NULL; event = event->next) {
+		if (event->efd == efd)
+			return event;
+	}
+	return NULL;
+}
+
 /*
  * Return a string value describing the enum type for the current
  * mechanism.

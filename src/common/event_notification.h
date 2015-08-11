@@ -74,6 +74,9 @@ struct event_specifier {
 struct event_specifier *
 tsocks_find_event_specifier_by_identifier(struct event_specifier *events,
 					  event_id_t id);
+struct event_specifier *
+tsocks_find_event_specifier_by_efd(struct event_specifier *events,
+				    int efd);
 const char * tsocks_event_mech_to_string(event_mech_t mech);
 void tsocks_add_event_on_connection(struct connection *conn,
 				    struct event_specifier *evspec);
