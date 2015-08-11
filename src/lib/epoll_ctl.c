@@ -57,17 +57,21 @@ LIBC_EPOLL_CTL_RET_TYPE tsocks_epoll_ctl(LIBC_EPOLL_CTL_SIG)
 			return -1;
 		}
 		tsocks_add_event_on_connection(conn, evspec);
+	} else if (EPOLL_CTL_DEL == op) {
+		evspec = tsocks_find_event_specifier_by_efd(conn->events,
+							    epfd);
 	} else {
 		evspec = tsocks_find_event_specifier_by_identifier(conn->events,
 								   event->data);
-		if (evspec == NULL) {
-			/* Hopefully this isn't a bug - but it
-			 * probably is. */
-			DBG("[epoll_ctl] Did not find existing evspec "
-			    "in list.");
-			errno = ENOENT;
-			return -1;
-		}
+	}
+
+	if (evspec == NULL) {
+		/* Hopefully this isn't a bug - but it
+		 * probably is. */
+		DBG("[epoll_ctl] Did not find existing evspec "
+		    "in list.");
+		errno = ENOENT;
+		return -1;
 	}
 
 	if (tsocks_modify_event(epfd, fd, op, evspec, NULL,
