@@ -314,8 +314,9 @@ static int modify_event_epoll(int fd, int op, struct event_specifier *evspec,
 		errno = EINVAL;
 		return -1;
 	}
-	if (conn->app_fd != fd) {
-		DBG("[epoll] This kev's ID doesn't match what we know. Abort.");
+	if (conn->tsocks_fd != fd) {
+		DBG("[epoll] This event's ID doesn't match what we know. "
+		    "%d vs %d. Abort.", conn->app_fd, fd);
 		errno = EINVAL;
 		return -1;
 	}
