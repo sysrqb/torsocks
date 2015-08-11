@@ -304,11 +304,6 @@ static int modify_event_epoll(int fd, int op, struct event_specifier *evspec,
 {
 #if defined(__linux__)
 	errno = 0;
-	if (event == NULL) {
-		DBG("[epoll] Can't modify evspec when given NULL event pointer. :(");
-		errno = EINVAL;
-		return -1;
-	}
 	if (evspec == NULL) {
 		DBG("[epoll] Can't modify evspec when given NULL evspec pointer. :(");
 		errno = EINVAL;
@@ -327,6 +322,11 @@ static int modify_event_epoll(int fd, int op, struct event_specifier *evspec,
 		return -1;
 	}
 	if (op == EPOLL_CTL_ADD || op == EPOLL_CTL_MOD) {
+		if (event == NULL) {
+			DBG("[epoll] Can't modify evspec when given NULL event pointer. :(");
+			errno = EINVAL;
+			return -1;
+		}
 		/* epoll's ONESHOT is different from kqueue. Here Oneshot
 		 * disables the polling, it doesn't automatically delete it.
 		 * We ignore EPOLLONESHOT because it doesn't change how we
