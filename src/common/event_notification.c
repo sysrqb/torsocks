@@ -320,8 +320,9 @@ static int modify_event_epoll(int fd, int op, struct event_specifier *evspec,
 		errno = EINVAL;
 		return -1;
 	}
-	if (op != EPOLL_CTL_ADD || op != EPOLL_CTL_MOD || op != EPOLL_CTL_DEL) {
-		DBG("[epoll] Operation not recognized or supported. Skipping.");
+	if (op != EPOLL_CTL_ADD && op != EPOLL_CTL_MOD && op != EPOLL_CTL_DEL) {
+		DBG("[epoll] Operation not recognized or supported (%d). "
+		    "Skipping.", op);
 		errno = EINVAL;
 		return -1;
 	}
