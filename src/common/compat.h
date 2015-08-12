@@ -56,6 +56,8 @@ typedef struct tsocks_once_t {
 
 void tsocks_once(tsocks_once_t *o, void (*init_routine)(void));
 
+long tsocks_get_hostname_max_len();
+
 #else
 #error "OS not supported."
 #endif /* __linux__, __GLIBC__, __darwin__, __FreeBSD__, __NetBSD__ */

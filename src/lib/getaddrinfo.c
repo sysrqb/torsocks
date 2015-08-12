@@ -44,10 +44,13 @@ LIBC_GETADDRINFO_RET_TYPE tsocks_getaddrinfo(LIBC_GETADDRINFO_SIG)
 	char *ip_str = NULL, ipv4[INET_ADDRSTRLEN], ipv6[INET6_ADDRSTRLEN];
 	socklen_t ip_str_size;
 	const char *tmp_node;
-	char hostname[HOST_NAME_MAX];
+	char *hostname = NULL;
+	long host_name_max;
 
 	DBG("[getaddrinfo] Requesting %s hostname", node);
 
+	host_name_max = tsocks_get_hostname_max_len();
+	hostname = malloc(sizeof(*hostname)*host_name_max);
 	tmp_node = node;
 	if (!node) {
 		/*
@@ -63,7 +66,7 @@ LIBC_GETADDRINFO_RET_TYPE tsocks_getaddrinfo(LIBC_GETADDRINFO_SIG)
 	 * In genernal, this is not what we want. Let's try to catch this
 	 * and force a lookup for a loopback address below.
 	 */
-	if (gethostname(hostname, HOST_NAME_MAX) == 0) {
+	if (gethostname(hostname, host_name_max) == 0) {
 		int hostnamelen = strlen(hostname);
 		int nodelen = strlen(node);
 		if (memcmp(node, hostname, hostnamelen > nodelen ? nodelen : hostnamelen)) {
@@ -84,6 +87,7 @@ LIBC_GETADDRINFO_RET_TYPE tsocks_getaddrinfo(LIBC_GETADDRINFO_SIG)
 	} else {
 		/* lookup with 2 uname() */
 	}
+	free(hostname);
 
 	/*
 	 * Quoting the getaddrinfo(3) man page:
