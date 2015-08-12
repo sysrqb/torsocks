@@ -296,7 +296,7 @@ static int modify_event_kqueue(struct event_specifier *evspec,
 	}
 	if (!(kev->flags & (EV_ADD|EV_DELETE|EV_ONESHOT))) {
 		DBG("[kqueue] Modification not needed, skipping.");
-		return -1;
+		return 0;
 	}
 	if (kev->flags & EV_ADD) {
 		evspec->filters |= 1 << -kev->filter;
@@ -305,7 +305,6 @@ static int modify_event_kqueue(struct event_specifier *evspec,
 		if (evspec->filters == 0 && evspec->oneshot_filters == 0) {
 			evspec->marked_event_for_destroy = 1;
 		}
-	}
 	} else if (kev->flags & EV_ONESHOT) {
 		evspec->oneshot_filters &= ~(1 << -kev->filter);
 	} else {
