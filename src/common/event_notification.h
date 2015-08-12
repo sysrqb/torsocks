@@ -37,7 +37,8 @@ typedef union event_id {
 	uintptr_t kq;
 	uint64_t kq64;
 } event_id_t;
-struct epoll_data;
+typedef struct epoll_data epoll_data_t;
+struct epoll_event;
 #endif
 
 /* The event mechanisms currently supported */

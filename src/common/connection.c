@@ -27,6 +27,8 @@
 #include "macros.h"
 #include "utils.h"
 
+int tsocks_destroy_event(struct connection *conn, struct event_specifier *evspec);
+
 /*
  * Connection registry mutex.
  *

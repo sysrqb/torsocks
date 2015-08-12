@@ -166,7 +166,7 @@ tsocks_create_new_event_kqueue(int kq, uintptr_t id, int16_t filter)
 	spec->mech = KQUEUE;
 	spec->efd = kq;
 	spec->filters |= 1 << filter;
-	spec->id = id;
+	spec->id.kq = id;
 	spec->marked_event_for_destroy = 0;
 	spec->next = NULL;
 	return spec;
@@ -192,7 +192,7 @@ tsocks_create_new_event_kqueue64(int kq, uint64_t id, int16_t filter)
 		return NULL;
 	}
 	spec->mech = KQUEUE64;
-	spec->id = id;
+	spec->id.kq64 = id;
 	return spec;
 #else
 	return NULL;
@@ -290,7 +290,7 @@ static int modify_event_kqueue(struct event_specifier *evspec,
 		DBG("[kqueue] Can't modify evspec when given NULL evspec pointer. :(");
 		return -1;
 	}
-	if (memcmp(evspec->id, kev->ident, sizeof(evspec->id))) {
+	if (memcmp(&(evspec->id), &(kev->ident), sizeof(kev->ident))) {
 		DBG("[kqueue] This kev's ID doesn't match what we know. Abort.");
 		return -1;
 	}
@@ -365,7 +365,7 @@ static int modify_event_epoll(int fd, int op, struct event_specifier *evspec,
 	}
 	return 0;
 #else
-	return -1
+	return -1;
 #endif
 }
 
