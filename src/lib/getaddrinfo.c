@@ -49,10 +49,7 @@ LIBC_GETADDRINFO_RET_TYPE tsocks_getaddrinfo(LIBC_GETADDRINFO_SIG)
 
 	DBG("[getaddrinfo] Requesting %s hostname", node);
 
-	host_name_max = sysconf(_SC_HOST_NAME_MAX);
-	if (host_name_max == -1) {
-		host_name_max = _POSIX_HOST_NAME_MAX;
-	}
+	host_name_max = tsocks_get_hostname_max_len();
 	hostname = malloc(sizeof(*hostname)*host_name_max);
 	tmp_node = node;
 	if (!node) {
