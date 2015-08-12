@@ -37,7 +37,15 @@ typedef union event_id {
 	uintptr_t kq;
 	uint64_t kq64;
 } event_id_t;
-typedef struct epoll_data epoll_data_t;
+/*
+ * We need a definition for this,
+ * but we never use it. It's a
+ * placeholder definition only so
+ * we compile on non-Linux systems.
+ */
+typedef struct epoll_data {
+	void *bogus;
+} epoll_data_t;
 struct epoll_event;
 #endif
 
