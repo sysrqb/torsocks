@@ -469,6 +469,54 @@ struct hostent **result, int *h_errnop
 
 #if (defined(__FreeBSD__) || defined(__darwin__) || defined(__NetBSD__))
 
+/* kqueue(2) */
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/time.h>
+
+#define LIBC_KQUEUE_NAME kqueue
+#define LIBC_KQUEUE_NAME_STR XSTR(LIBC_KQUEUE_NAME)
+#define LIBC_KQUEUE_RET_TYPE int
+#define LIBC_KQUEUE_SIG void
+#define LIBC_KQUEUE_ARGS
+
+/* kevent(2) */
+
+#define LIBC_KEVENT_NAME kevent
+#define LIBC_KEVENT_NAME_STR XSTR(LIBC_KEVENT_NAME)
+#define LIBC_KEVENT_RET_TYPE int
+#define LIBC_KEVENT_SIG int kq, const struct kevent *changelist,	\
+			int nchanges, struct kevent *eventlist,		\
+			int nevents, const struct timespec *timeout
+#define LIBC_KEVENT_ARGS kq, changelist, nchanges, eventlist, nevents, timeout
+
+#if defined(__NetBSD__)
+/* kqueue1(2) */
+
+#define LIBC_KQUEUE1_NAME kqueue1
+#define LIBC_KQUEUE1_NAME_STR XSTR(LIBC_KQUEUE_NAME)
+#define LIBC_KQUEUE1_RET_TYPE int
+#define LIBC_KQUEUE1_SIG int flags
+#define LIBC_KQUEUE1_ARGS flags
+#endif /* __NetBSD__ */
+
+#if defined(__darwin__)
+/* kevent64(2) */
+
+#define LIBC_KEVENT64_NAME kevent64
+#define LIBC_KEVENT64_NAME_STR XSTR(LIBC_KEVENT64_NAME)
+#define LIBC_KEVENT64_RET_TYPE int
+#define LIBC_KEVENT64_SIG int kq, const struct kevent64_s *changelist,	\
+			int nchanges, struct kevent64_s *eventlist, 	\
+			int nevents, unsigned int flags,		\
+			const struct timespec *timeout
+#define LIBC_KEVENT64_ARGS kq, changelist, nchanges, eventlist, 	\
+			   nevents, flags, timeout
+#endif /* __darwin__ */
+#endif /* __FreeBSD__, __darwin__, __NetBSD__ */
+
+#if (defined(__FreeBSD__) || defined(__darwin__) || defined(__NetBSD__))
+
 /* syscall(2) */
 #define LIBC_SYSCALL_NAME syscall
 #define LIBC_SYSCALL_NAME_STR XSTR(LIBC_SYSCALL_NAME)
