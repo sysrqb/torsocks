@@ -51,7 +51,7 @@ AC_CHECK_HEADERS(dlfcn.h sys/syscall.h sys/socket.h arpa/inet.h \
 dnl Checks for required library functions.
 AC_CHECK_FUNCS(strcspn strdup strerror strcasecmp strncasecmp mmap munmap \
                socket connect close syscall recv send memset memcpy strlen \
-               strncpy strcmp malloc calloc strstr strtoul free,,
+               strncpy strcmp malloc calloc strstr strtoul sysconf free,,
 	[AC_MSG_ERROR("Required function not found")]
 )
 

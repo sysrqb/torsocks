@@ -18,6 +18,8 @@
 #include <assert.h>
 
 #include "compat.h"
+#include "macros.h"
+#include "defaults.h"
 
 #if (defined(__GLIBC__) || defined(__FreeBSD__) || defined(__darwin__) || defined(__NetBSD__))
 
@@ -96,4 +98,25 @@ void tsocks_once(tsocks_once_t *o, void (*init_routine)(void))
 	tsocks_mutex_unlock(&o->mutex);
 }
 
+ATTR_HIDDEN
+long tsocks_get_hostname_max_len()
+{
+	long host_name_max;
+	const long default_host_name_max = DEFAULT_DOMAIN_NAME_SIZE;
+
+#if defined(HAVE_SYSCONF) && defined(_SC_HOST_NAME_MAX)
+	host_name_max = sysconf(_SC_HOST_NAME_MAX);
+	if (host_name_max == -1) {
+#endif /* HAVE_SYSCONF && _SC_HOST_NAME_MAX */
+#if defined(_POSIX_HOST_NAME_MAX)
+		host_name_max = _POSIX_HOST_NAME_MAX;
+#else
+		host_name_max = default_host_name_max;
+#endif /* _POSIX_HOST_NAME_MAX */
+#if defined(HAVE_SYSCONF) && defined(_SC_HOST_NAME_MAX)
+	}
+#endif /* HAVE_SYSCONF */
+	return host_name_max;
+}
 #endif /* __GLIBC__, __darwin__, __FreeBSD__, __NetBSD__ */
+
