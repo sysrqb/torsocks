@@ -48,13 +48,28 @@ static size_t add_time_to_log(char *buf, size_t len)
 {
 	time_t now;
 	const struct tm *tm;
+	clockid_t clk_id = CLOCK_MONOTONIC;
+	struct timespec tp;
+	size_t written;
 
 	assert(buf);
 
 	/* Get time stamp. */
 	time(&now);
 	tm = localtime(&now);
-	return strftime(buf, len, "[%b %d %H:%M:%S] ", tm);
+	written = strftime(buf, len, "[%b %d %H:%M:%S] ", tm);
+	if (clock_gettime(clk_id, &tp) == -1) {
+		return written;
+	} else {
+		/* Overwrite trailing "] " in buffer */
+		len -= (written - 2);
+		if (len > 10) {
+			/* Need space to '.' plus 9 digits */
+			written -= 2;
+			written += snprintf(buf + written, len, ".%09ld] ", tp.tv_nsec);
+		}
+		return written;
+	}
 }
 
 /*
