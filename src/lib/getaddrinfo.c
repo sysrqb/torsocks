@@ -73,7 +73,7 @@ LIBC_GETADDRINFO_RET_TYPE tsocks_getaddrinfo(LIBC_GETADDRINFO_SIG)
 			char *domainsep;
 			domainsep = strstr(hostname, ".");
 			if (domainsep != NULL) {
-				domainsep = '\0';
+				*domainsep = '\0';
 				int hostnamelen = strlen(hostname);
 				if (memcmp(node, hostname, hostnamelen > nodelen ? nodelen : hostnamelen) == 0) {
 					DBG("[getaddrinfo] Caught lookup for local hostname (%s). Using loopback instead.", node);
