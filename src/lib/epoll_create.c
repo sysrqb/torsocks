@@ -2,6 +2,7 @@
 #include <common/log.h>
 #include "torsocks.h"
 
+#if (defined(__linux__))
 /* epoll_create(2) */
 TSOCKS_LIBC_DECL(epoll_create, LIBC_EPOLL_CREATE_RET_TYPE, LIBC_EPOLL_CREATE_SIG)
 /* epoll_create1(2) */
@@ -67,3 +68,4 @@ LIBC_EPOLL_CREATE1_DECL
 
 	return tsocks_epoll_create1(LIBC_EPOLL_CREATE1_ARGS);
 }
+#endif /* __linux__ */

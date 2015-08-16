@@ -4,6 +4,7 @@
 #include <common/connection.h>
 #include <common/event_notification.h>
 
+#if (defined(__linux__))
 #define operation_name(op, operation)			\
 	do {						\
 		switch (op) {				\
@@ -107,3 +108,4 @@ LIBC_EPOLL_CTL_DECL
 
 	return tsocks_epoll_ctl(LIBC_EPOLL_CTL_ARGS);
 }
+#endif /* __linux__ */

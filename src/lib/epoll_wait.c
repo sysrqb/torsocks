@@ -3,6 +3,7 @@
 #include "torsocks.h"
 #include <common/connection.h>
 
+#if (defined(__linux__))
 /* epoll_wait(2) */
 TSOCKS_LIBC_DECL(epoll_wait, LIBC_EPOLL_WAIT_RET_TYPE, LIBC_EPOLL_WAIT_SIG)
 
@@ -66,3 +67,4 @@ LIBC_EPOLL_PWAIT_DECL
 
 	return tsocks_epoll_pwait(LIBC_EPOLL_PWAIT_ARGS);
 }
+#endif /* __linux__ */
