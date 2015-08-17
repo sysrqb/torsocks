@@ -88,8 +88,8 @@ LIBC_POLL_RET_TYPE tsocks_poll(LIBC_POLL_SIG)
 	/* Find all the fds in readfds whose connections we are currently
 	 * hijacking and replace them with our tsocks fd.
 	 *
-	 * read_replaced_fds will be a list of (tsocks_fd, app_fd) pairs of
-	 * all the fds we replaced, and it has a size of read_replaced_len.
+	 * replaced_fds will be a list of (tsocks_fd, app_fd) pairs of
+	 * all the fds we replaced, and it has a size of replaced_len.
 	 */
 	poll_find_and_replace(fds, nfds, &replaced_fds, &replaced_len);
 	retval = tsocks_libc_poll(LIBC_POLL_ARGS);
@@ -115,8 +115,8 @@ LIBC_PPOLL_RET_TYPE tsocks_ppoll(LIBC_PPOLL_SIG)
 	/* Find all the fds in readfds whose connections we are currently
 	 * hijacking and replace them with our tsocks fd.
 	 *
-	 * read_replaced_fds will be a list of (tsocks_fd, app_fd) pairs of
-	 * all the fds we replaced, and it has a size of read_replaced_len.
+	 * replaced_fds will be a list of (tsocks_fd, app_fd) pairs of
+	 * all the fds we replaced, and it has a size of replaced_len.
 	 */
 	poll_find_and_replace(fds, nfds, &replaced_fds, &replaced_len);
 
