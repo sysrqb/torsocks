@@ -28,10 +28,11 @@ static void select_restore_fds_and_free(fd_set *fds, int **replaced, int len)
 			FD_SET(replaced[i][1], fds);
 			count++;
 		}
-		free(replaced[i]);
 	}
 	DBG("[select] Restored %d descriptor%s in fd_set", count,
 					   count == 1 ? "" : "s");
+	for (i = 0; i < len; i++)
+		free(replaced[i]);
 	free(replaced);
 }
 

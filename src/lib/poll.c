@@ -67,10 +67,11 @@ static void poll_restore_fds_and_free(struct pollfd *fds, nfds_t nfds, int **rep
 				count++;
 			}
 		}
-		free(replaced[i]);
 	}
 	DBG("[poll] Restored %d descriptor%s in fds", count,
 					   count == 1 ? "" : "s");
+	for (i = 0; i < len; i++)
+		free(replaced[i]);
 	free(replaced);
 }
 
