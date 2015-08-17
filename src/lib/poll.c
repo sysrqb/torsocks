@@ -11,6 +11,42 @@ TSOCKS_LIBC_DECL(ppoll, LIBC_PPOLL_RET_TYPE, LIBC_PPOLL_SIG)
 #endif /* __linux__ */
 
 /*
+ * For each application fd in fds, find the tsocks connection
+ * corresponding to it. Substitute the application fd with the tsocks
+ * connection.
+ */
+static void poll_find_and_replace(struct pollfd *fds, nfds_t nfds,
+					int **replaced[], int *len)
+{
+	int i, rep_idx=0;
+
+	if (fds == NULL)
+		return;
+	*replaced = calloc(nfds, sizeof(**replaced));
+	if (*replaced == NULL) {
+		*len = 0;
+		return;
+	}
+	for (i = 0; i < nfds; i++) {
+		int fd = fds[i].fd;
+		struct connection *conn;
+		conn = connection_find(fd);
+		if (conn == NULL)
+			continue;
+		fds[i].fd = conn->tsocks_fd;
+		DBG("Replaced fd %d with %d in pollfd.", fd, conn->tsocks_fd);
+		(*replaced)[rep_idx] = calloc(2, sizeof(***replaced));
+		if ((*replaced)[rep_idx] == NULL) {
+			*len = rep_idx;
+			return;
+		}
+		(*replaced)[rep_idx][0] = conn->tsocks_fd;
+		(*replaced)[rep_idx++][1] = fd;
+	}
+	*len = rep_idx;
+}
+
+/*
  * Replace tsocks fd with app fd
  *
  * *replaced* is a array of arrays. The arrays are of length two,
@@ -54,9 +90,7 @@ LIBC_POLL_RET_TYPE tsocks_poll(LIBC_POLL_SIG)
 	 * read_replaced_fds will be a list of (tsocks_fd, app_fd) pairs of
 	 * all the fds we replaced, and it has a size of read_replaced_len.
 	 */
-	connection_conn_list_find_and_replace_poll(fds, nfds,
-						&replaced_fds,
-						&replaced_len);
+	poll_find_and_replace(fds, nfds, &replaced_fds, &replaced_len);
 	retval = tsocks_libc_poll(LIBC_POLL_ARGS);
 	/* Replace each tsocks fd which has a pending event with
 	 * its app fd, so the app knows it should take action.
@@ -83,9 +117,7 @@ LIBC_PPOLL_RET_TYPE tsocks_ppoll(LIBC_PPOLL_SIG)
 	 * read_replaced_fds will be a list of (tsocks_fd, app_fd) pairs of
 	 * all the fds we replaced, and it has a size of read_replaced_len.
 	 */
-	connection_conn_list_find_and_replace_poll(fds, nfds,
-						&replaced_fds,
-						&replaced_len);
+	poll_find_and_replace(fds, nfds, &replaced_fds, &replaced_len);
 
 	retval = tsocks_libc_ppoll(LIBC_PPOLL_ARGS);
 	/* Replace each tsocks fd which has a pending event with

@@ -456,46 +456,6 @@ int connection_conn_list_find_and_replace_select(fd_set *fds,
 }
 
 /*
- * For each application fd in fds, find the tsocks connection
- * corresponding to it. Substitute the application fd with the tsocks
- * connection.
- */
-ATTR_HIDDEN
-void connection_conn_list_find_and_replace_poll(struct pollfd *fds, nfds_t nfds,
-						int **replaced[], int *len)
-{
-	int i, rep_idx=0;
-
-	if (conn_list.len == 0 || conn_list.num_used == 0 ||
-	    conn_list.fds == NULL)
-		return;
-	if (fds == NULL)
-		return;
-	*replaced = calloc(conn_list.num_used, sizeof(**replaced));
-	if (*replaced == NULL) {
-		*len = 0;
-		return;
-	}
-	for (i = 0; i < nfds; i++) {
-		int fd = fds[i].fd;
-		struct connection *conn;
-		conn = connection_find(fd);
-		if (conn == NULL)
-			continue;
-		fds[i].fd = conn->tsocks_fd;
-		DBG("Replaced fd %d with %d in pollfd.", fd, conn->tsocks_fd);
-		(*replaced)[rep_idx] = calloc(2, sizeof(***replaced));
-		if ((*replaced)[rep_idx] == NULL) {
-			*len = rep_idx;
-			return;
-		}
-		(*replaced)[rep_idx][0] = conn->tsocks_fd;
-		(*replaced)[rep_idx++][1] = fd;
-	}
-	*len = rep_idx;
-}
-
-/*
  * Insert a connection object into the hash table.
  */
 ATTR_HIDDEN

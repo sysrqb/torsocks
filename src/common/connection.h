@@ -99,9 +99,6 @@ void connection_remove(struct connection *conn);
 void connection_insert(struct connection *conn);
 int connection_conn_list_find_and_replace_select(fd_set *fds, int ***replaced,
 						int *len);
-void connection_conn_list_find_and_replace_poll(struct pollfd *fds, nfds_t nfds,
-						int ***replaced, int *len);
-
 void connection_registry_lock(void);
 void connection_registry_unlock(void);
 
