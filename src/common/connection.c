@@ -464,7 +464,7 @@ ATTR_HIDDEN
 void connection_conn_list_find_and_replace_poll(struct pollfd *fds, nfds_t nfds,
 						int **replaced[], int *len)
 {
-	int i, j, rep_idx=0;
+	int i, rep_idx=0;
 
 	if (conn_list.len == 0 || conn_list.num_used == 0 ||
 	    conn_list.fds == NULL)
@@ -476,28 +476,21 @@ void connection_conn_list_find_and_replace_poll(struct pollfd *fds, nfds_t nfds,
 		*len = 0;
 		return;
 	}
-	for (i = 0; i < conn_list.head + 1; i++) {
-		int fd = conn_list.fds[i];
-		if (fd == -1)
+	for (i = 0; i < nfds; i++) {
+		int fd = fds[i].fd;
+		struct connection *conn;
+		conn = connection_find(fd);
+		if (conn == NULL)
 			continue;
-		for (j = 0; j < nfds; j++) {
-			if (fd == fds[j].fd) {
-				struct connection *conn;
-				conn = connection_find(fd);
-				if (conn == NULL)
-					/* This is a bug, but segfaulting is sad */
-					continue;
-				fds[j].fd = conn->tsocks_fd;
-				DBG("Replaced fd %d with %d in pollfd.", fd, conn->tsocks_fd);
-				(*replaced)[rep_idx] = calloc(2, sizeof(***replaced));
-				if ((*replaced)[rep_idx] == NULL) {
-					*len = rep_idx;
-					return;
-				}
-				(*replaced)[rep_idx][0] = conn->tsocks_fd;
-				(*replaced)[rep_idx++][1] = fd;
-			}
+		fds[i].fd = conn->tsocks_fd;
+		DBG("Replaced fd %d with %d in pollfd.", fd, conn->tsocks_fd);
+		(*replaced)[rep_idx] = calloc(2, sizeof(***replaced));
+		if ((*replaced)[rep_idx] == NULL) {
+			*len = rep_idx;
+			return;
 		}
+		(*replaced)[rep_idx][0] = conn->tsocks_fd;
+		(*replaced)[rep_idx++][1] = fd;
 	}
 	*len = rep_idx;
 }
