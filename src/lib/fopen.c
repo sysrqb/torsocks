@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <common/connection.h>
 #include <common/log.h>
 #include "torsocks.h"
 
@@ -21,9 +22,9 @@ LIBC_FOPEN_RET_TYPE tsocks_fopen(LIBC_FOPEN_SIG)
 	file = tsocks_libc_fopen(LIBC_FOPEN_ARGS);
 	if (file != NULL) {
 		fd = fileno(file);
-		DBG("[fopen] Open returned FILE stream %#x, fd %d", file, fd);
+		DBG("[fopen] libc fopen returned FILE stream %#x, fd %d", file, fd);
 	} else {
-		DBG("[fopen] Open returned NULL, %s", strerror(errno));
+		DBG("[fopen] libc fopen returned NULL, %s", strerror(errno));
 	}
 	return file;
 }
@@ -38,29 +39,43 @@ LIBC_FDOPEN_RET_TYPE tsocks_fdopen(LIBC_FDOPEN_SIG)
 
 	file = tsocks_libc_fdopen(LIBC_FDOPEN_ARGS);
 	if (file != NULL) {
-		DBG("[fdopen] Open returned FILE stream %#x", file);
+		DBG("[fdopen] libc fdopen returned FILE stream %#x", file);
 	} else {
-		DBG("[fdopen] Open returned NULL, %s", strerror(errno));
+		DBG("[fdopen] libc fdopen returned NULL, %s", strerror(errno));
 	}
 	return file;
 }
+
 /*
  * Torsocks call for freopen(3).
+ *
+ * Substituting a stream socket fd with a file always fails based on testing.
+ * This is for safety, not because it seems useful.
  */
 LIBC_FREOPEN_RET_TYPE tsocks_freopen(LIBC_FREOPEN_SIG)
 {
+	struct connection *conn;
 	FILE *file;
 	int fd;
 
-	DBG("[freopen] Reopen caught on file '%s', reopening on %x",
-	    path, stream);
+	DBG("[freopen] Reopen caught for stream %#x with file path '%s'",
+	    stream, path);
 
+	fd = fileno(stream);
+	conn = connection_find(fd);
+	DBG("[freopen] Searching for connection associated with FILE stream "
+            "fd %d", fd);
+	if (conn) {
+		DBG("[freopen] Replacing connection %#x with a file on fd %d. "
+			"Cleaning up connection.", conn, fd);
+		tsocks_close(fd);
+	}
 	file = tsocks_libc_freopen(LIBC_FREOPEN_ARGS);
 	if (file != NULL) {
 		fd = fileno(file);
-		DBG("[freopen] Reopen returned FILE stream %#x, fd %d", file, fd);
+		DBG("[freopen] libc reopen returned FILE stream %#x, fd %d", file, fd);
 	} else {
-		DBG("[freopen] Reopen returned NULL, %s", strerror(errno));
+		DBG("[freopen] libc reopen returned NULL, %s", strerror(errno));
 	}
 	return file;
 }
