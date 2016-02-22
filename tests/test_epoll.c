@@ -29,7 +29,6 @@
 #include <tap/tap.h>
 
 #if (defined(__linux__))
-#include <sys/epoll.h>
 
 #define NUM_TESTS 35
 
