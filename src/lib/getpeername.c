@@ -55,9 +55,18 @@ LIBC_GETPEERNAME_RET_TYPE tsocks_getpeername(LIBC_GETPEERNAME_SIG)
 		goto end;
 	}
 
+	#if 0
 	/*
 	 * Extra check for addrlen since we are about to copy the connection
 	 * content into the given address.
+	 */
+	/* but socklen_t is unsigned... 
+	 * http://pubs.opengroup.org/onlinepubs/7908799/xns/syssocket.h.html
+	 * http://pubs.opengroup.org/onlinepubs/7908799/xns/getpeername.html
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_socket.h.html
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/
+	 * "socklen_t, which is an unsigned opaque integral type of length of
+	 * at least 32 bits."
 	 */
 	if (*addrlen < 0) {
 		/* Ref to the manpage for the returned value here. */
@@ -66,6 +75,7 @@ LIBC_GETPEERNAME_RET_TYPE tsocks_getpeername(LIBC_GETPEERNAME_SIG)
 		ret = -1;
 		goto end;
 	}
+	#endif
 
 	/*
 	 * Copy the minimum of *addrlen and the size of the actual address
