@@ -1,5 +1,7 @@
 #include <stdarg.h>
+#include <stdlib.h>
 #include <common/log.h>
+#include <common/event_notification.h>
 #include "torsocks.h"
 
 #if (defined(__FreeBSD__) || defined(__darwin__) || defined(__NetBSD__))
@@ -39,11 +41,9 @@ static char * stringify_filter(short filter)
  * corresponding to it. Substitute the application fd with the tsocks
  * connection.
  */
-static int kevent_find_and_replace(struct kevent *changes, int replaced[],
+static int kevent_find_and_replace(struct kevent *changes, int **replaced,
 				int index, const struct connection *conn)
 {
-	int i;
-
 	if (changes == NULL)
 		return -1;
 	if (*replaced == NULL)
@@ -51,8 +51,8 @@ static int kevent_find_and_replace(struct kevent *changes, int replaced[],
 	int fd = changes->ident;
 	changes->ident = conn->tsocks_fd;
 	DBG("Replaced fd %d with %d in kevent.", fd, conn->tsocks_fd);
-	(*replaced)[index][0] = conn->tsocks_fd;
-	(*replaced)[index][1] = fd;
+	replaced[index][0] = conn->tsocks_fd;
+	replaced[index][1] = fd;
 	return 0;
 }
 
@@ -74,7 +74,7 @@ static void kevent_restore_fds_and_free(struct kevent *events, int nevents,
 		int cur_fd = replaced[i][0];
 		for (j = 0; j < nevents; j++) {
 			if (events[j].ident == cur_fd) {
-				kevent[j].ident = replaced[i][1];
+				events[j].ident = replaced[i][1];
 				count++;
 			}
 		}
@@ -103,12 +103,13 @@ static int kevent_apply_changes(int kq, struct event_specifier *pending,
 	return 0;
 }
 
-static int kevent_delete_used_oneshot_events(eventlist[i], conn)
+static int kevent_delete_used_oneshot_events(struct kevent *eventlist, struct connection *conn)
 {
-	struct event_specifier *evspec =
+	/* struct event_specifier *evspec =
 			tsocks_find_event_specifier_by_efd(conn->events, kq);
-	for 
-	evspec &= ~eventlist
+	It looks like this is where I stopped... */
+	/*for 
+	evspec &= ~eventlist*/
 	
 	return 0;
 }
@@ -118,10 +119,10 @@ static int kevent_delete_used_oneshot_events(eventlist[i], conn)
  */
 LIBC_KEVENT_RET_TYPE tsocks_kevent(LIBC_KEVENT_SIG)
 {
-	int fds;
 	int i, n, fds;
 	int **replaced_fds;
 	int replaced_len = 0;
+	struct connection *conn;
 	struct event_specifier *pending_changes = NULL,
 				*pending_oneshot_changes = NULL;
 	const uint8_t events = ((1<<-EVFILT_READ) | (1<<-EVFILT_WRITE) |
@@ -129,6 +130,11 @@ LIBC_KEVENT_RET_TYPE tsocks_kevent(LIBC_KEVENT_SIG)
 
 	DBG("[kevent] kevent caught with in-size '%d', and out-size '%d'",
 	    nchanges, nevents);
+	replaced_fds = calloc(nchanges, sizeof(*replaced_fds));
+	if (replaced_fds == NULL) {
+		DBG("[kevent] replaced_fds creation failed: %s",
+			strerror(errno));
+	}
 	for (i=0; i < nchanges; i++) {
 		if ((1<<-changelist[i].filter) & events) {
 			struct event_specifier *evspec;
@@ -150,7 +156,8 @@ LIBC_KEVENT_RET_TYPE tsocks_kevent(LIBC_KEVENT_SIG)
 				if (evspec == NULL) {
 					DBG("[kevent] evspec creation failed: %s",
 				    	strerror(errno));
-					goto free_end;
+					fds = -1;
+					goto error_freeall;
 				}
 				if (changelist[i].flags & EV_ONESHOT) {
 					evspec->next = pending_oneshot_changes;
@@ -172,9 +179,9 @@ LIBC_KEVENT_RET_TYPE tsocks_kevent(LIBC_KEVENT_SIG)
 				 * replaced, and it has a size of
 				 * replaced_len.
 				 */
-				(*replaced_fds)[replaced_len] =
+				replaced_fds[replaced_len] =
 					calloc(2, sizeof((*replaced_fds)[0]));
-				if ((*replaced_fds)[replaced_len] == NULL) {
+				if (replaced_fds[replaced_len] == NULL) {
 					eventlist[0].ident =
 							changelist[i].ident;
 					eventlist[0].flags = EV_ERROR;
@@ -182,7 +189,7 @@ LIBC_KEVENT_RET_TYPE tsocks_kevent(LIBC_KEVENT_SIG)
 					fds = 1;
 					goto error_freeall;
 				}
-				if (kevent_find_and_replace(&changelist[i], 1,
+				if (kevent_find_and_replace((struct kevent *)&changelist[i],
 						&replaced_fds[replaced_len++],
 						1, conn) == -1) {
 					continue;
@@ -191,39 +198,40 @@ LIBC_KEVENT_RET_TYPE tsocks_kevent(LIBC_KEVENT_SIG)
 		}
 	}
 	fds = tsocks_libc_kevent(LIBC_KEVENT_ARGS);
-	if (fd == -1) {
+	if (fds == -1) {
 		DBG("[kevent] kevent failed. '%s'", strerror(errno));
 		n = nevents;
 	} else {
-		DBG("[kevent] kevent returned fd %d", fd);
+		DBG("[kevent] kevent returned fd %d", fds);
 		n = fds;
 	}
 	kevent_restore_fds_and_free(eventlist, n, replaced_fds, replaced_len);
 	for (i = 0; i < n; i++) {
-		struct eventspec *evspec;
-		struct connection *conn = find_connection(
+		struct event_specifier *evspec;
+		event_id_t evid;
+		struct connection *conn = connection_find(
 						eventlist[i].ident);
 		if (conn == NULL)
 			continue;
-		if (eventlist[i]->flags & EVERR)
+		if (eventlist[i].flags & EV_ERROR)
 			continue;
+		evid.kq = eventlist[i].ident;
 		evspec = tsocks_find_event_specifier_by_identifier(
-						pending_changes,
-						event[i].ident)
+						pending_changes, evid);
 		if (evspec != NULL) {
 			kevent_apply_changes(kq, evspec, conn);
 		}
 		evspec = tsocks_find_event_specifier_by_identifier(
 						pending_oneshot_changes,
-						event[i].ident)
+						evid);
 		if (evspec != NULL) {
 			struct connection pseudo_conn;
 			pseudo_conn.events = pending_oneshot_changes;
 			tsocks_destroy_event(&pseudo_conn, evspec);
 		}
-		kevent_delete_used_oneshot_events(eventlist[i], conn);
-		kevent_add_remaining_oneshot_events(eventlist[i], conn,
-						pending_oneshot_changes);
+		kevent_delete_used_oneshot_events(&eventlist[i], conn);
+		/*kevent_add_remaining_oneshot_events(eventlist[i], conn,
+						pending_oneshot_changes);*/
 	}
 
 error_freeall:

@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <poll.h>
+#include <common/event_notification.h>
 
 #include "connection.h"
 #include "macros.h"

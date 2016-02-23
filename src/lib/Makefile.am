@@ -12,6 +12,6 @@ libtorsocks_la_SOURCES = torsocks.c torsocks.h \
                          socketpair.c recv.c exit.c accept.c listen.c \
                          fclose.c send.c read.c write.c readv.c writev.c \
                          shutdown.c open.c fopen.c poll.c epoll_create.c \
-                         epoll_ctl.c epoll_wait.c
+                         epoll_ctl.c epoll_wait.c kevent.c kqueue.c
 
 libtorsocks_la_LIBADD = $(top_builddir)/src/common/libcommon.la

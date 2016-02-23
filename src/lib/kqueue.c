@@ -16,8 +16,6 @@ LIBC_KQUEUE_RET_TYPE tsocks_kqueue(LIBC_KQUEUE_SIG)
 {
 	int fd;
 
-	DBG("[kqueue] kqueue caught with size '%d'", size);
-
 	fd = tsocks_libc_kqueue(LIBC_KQUEUE_ARGS);
 	if (fd == -1) {
 		DBG("[kqueue] kqueue failed. '%s'", strerror(errno));
