@@ -47,12 +47,14 @@ char * domain_str(int domain, char *buf, size_t buflen)
 	CASE_DOMAIN(AF_INET);
 	CASE_DOMAIN(AF_INET6);
 	CASE_DOMAIN(AF_IPX);
+	CASE_DOMAIN(AF_APPLETALK);
+#if defined(__linux__)
 	CASE_DOMAIN(AF_NETLINK);
 	CASE_DOMAIN(AF_X25);
 	CASE_DOMAIN(AF_AX25);
 	CASE_DOMAIN(AF_ATMPVC);
-	CASE_DOMAIN(AF_APPLETALK);
 	CASE_DOMAIN(AF_PACKET);
+#endif
 	default:
 		name = "AF not recognized";
 	}
@@ -71,7 +73,9 @@ char * type_str(int type, char *buf, size_t buflen)
 	else SOCKET_TYPE(SOCK_SEQPACKET)
 	else SOCKET_TYPE(SOCK_RAW)
 	else SOCKET_TYPE(SOCK_RDM)
+#if defined(__linux__)
 	else SOCKET_TYPE(SOCK_PACKET)
+#endif
 
 	buflen = buflen > strlen(name)?strlen(name):buflen;
 	strncpy(buf, name, buflen);
