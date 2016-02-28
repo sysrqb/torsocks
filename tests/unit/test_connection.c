@@ -45,7 +45,7 @@ static void test_connection_usage(void)
 
 	conn = connection_create(42, (struct sockaddr *) &c_addr.u.sin);
 	ok(conn &&
-		conn->fd == 42 &&
+		conn->app_fd == 42 &&
 		conn->dest_addr.domain == CONNECTION_DOMAIN_INET &&
 		conn->refcount.count == 1,
 		"Valid connection creation");
@@ -55,7 +55,7 @@ static void test_connection_usage(void)
 
 	conn2 = connection_create(43, (struct sockaddr *) &c_addr.u.sin);
 	ok(conn2 &&
-		conn2->fd == 43 &&
+		conn2->app_fd == 43 &&
 		conn2->dest_addr.domain == CONNECTION_DOMAIN_INET &&
 		conn2->refcount.count == 1,
 		"Valid second connection creation");
@@ -65,19 +65,19 @@ static void test_connection_usage(void)
 
 	connection_registry_lock();
 	connection_insert(conn);
-	l_conn = connection_find(conn->fd);
+	l_conn = connection_find(conn->app_fd);
 	ok(conn == l_conn, "Valid connection insert/find");
 
 	connection_insert(conn2);
-	l_conn = connection_find(conn2->fd);
+	l_conn = connection_find(conn2->app_fd);
 	ok(conn2 == l_conn, "Valid second connection insert/find");
 
 	connection_remove(conn);
-	l_conn = connection_find(conn->fd);
+	l_conn = connection_find(conn->app_fd);
 	ok(conn != l_conn, "Valid connection remove/find");
 
 	connection_remove(conn2);
-	l_conn = connection_find(conn2->fd);
+	l_conn = connection_find(conn2->app_fd);
 	ok(conn2 != l_conn, "Valid second connection remove/find");
 	connection_registry_unlock();
 
@@ -103,7 +103,7 @@ static void test_connection_creation(void)
 
 	conn = connection_create(42, (struct sockaddr *) &c_addr.u.sin);
 	ok(conn &&
-		conn->fd == 42 &&
+		conn->app_fd == 42 &&
 		conn->dest_addr.domain == CONNECTION_DOMAIN_INET &&
 		conn->refcount.count == 1,
 		"Valid connection creation");
@@ -111,7 +111,7 @@ static void test_connection_creation(void)
 
 	conn = connection_create(-1, (struct sockaddr *) &c_addr.u.sin);
 	ok(conn &&
-		conn->fd == -1 &&
+		conn->app_fd == -1 &&
 		conn->dest_addr.domain == CONNECTION_DOMAIN_INET &&
 		conn->refcount.count == 1,
 		"Valid connection creation with fd -1");
@@ -119,7 +119,7 @@ static void test_connection_creation(void)
 
 	conn = connection_create(42, NULL);
 	ok(conn &&
-		conn->fd == 42 &&
+		conn->app_fd == 42 &&
 		conn->dest_addr.domain == 0 &&
 		conn->refcount.count == 1,
 		"Valid connection creation with sockaddr NULL");
@@ -135,7 +135,7 @@ static void test_connection_creation(void)
 
 	conn = connection_create(42, (struct sockaddr *) &c_addr.u.sin6);
 	ok(conn &&
-		conn->fd == 42 &&
+		conn->app_fd == 42 &&
 		conn->dest_addr.domain == CONNECTION_DOMAIN_INET6 &&
 		conn->refcount.count == 1,
 		"Valid connection creation for IPv6");

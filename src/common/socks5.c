@@ -20,6 +20,8 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/un.h>
 
 #include <lib/torsocks.h>
 
@@ -153,31 +155,47 @@ static ssize_t (*send_data)(int, const void *, size_t) = send_data_impl;
 ATTR_HIDDEN
 int socks5_connect(struct connection *conn)
 {
-	int ret;
+	int ret, try_again;
 	socklen_t len;
 	struct sockaddr *socks5_addr = NULL;
 
 	assert(conn);
-	assert(conn->fd >= 0);
+	assert(conn->app_fd >= 0);
 
-	/*
-	 * We use the connection domain here since the connect() call MUST match
-	 * the right socket family. Thus, trying to establish a connection to a
-	 * remote IPv6, we have to connect to the Tor daemon in v6.
-	 */
-	switch (conn->dest_addr.domain) {
-	case CONNECTION_DOMAIN_NAME:
-		/*
-		 * For a domain name such as an onion address, use the default IPv4 to
-		 * connect to the Tor SOCKS port.
-		 */
+	/* Connect with Tor using the socket type defined in the config file. */
+	switch (tsocks_config.conf_file.tor_domain) {
 	case CONNECTION_DOMAIN_INET:
 		socks5_addr = (struct sockaddr *) &tsocks_config.socks5_addr.u.sin;
 		len = sizeof(tsocks_config.socks5_addr.u.sin);
+		conn->tor_fd = tsocks_libc_socket(AF_INET, SOCK_STREAM, 0);
+		if (conn->tor_fd == -1) {
+			ERR("Cannot create IPv4 TCP socket: %s",
+				strerror(errno));
+			ret = errno;
+			goto error;
+		}
 		break;
 	case CONNECTION_DOMAIN_INET6:
 		socks5_addr = (struct sockaddr *) &tsocks_config.socks5_addr.u.sin6;
 		len = sizeof(tsocks_config.socks5_addr.u.sin6);
+		conn->tor_fd = tsocks_libc_socket(AF_INET6, SOCK_STREAM, 0);
+		if (conn->tor_fd == -1) {
+			ERR("Cannot create IPv6 TCP socket: %s",
+				strerror(errno));
+			ret = errno;
+			goto error;
+		}
+		break;
+	case CONNECTION_DOMAIN_UNIX:
+		socks5_addr = (struct sockaddr *) &tsocks_config.socks5_addr.u.sun;
+		len = sizeof(tsocks_config.socks5_addr.u.sun);
+		conn->tor_fd = tsocks_libc_socket(AF_UNIX, SOCK_STREAM, 0);
+		if (conn->tor_fd == -1) {
+			ERR("Cannot create unix socket: %s",
+				strerror(errno));
+			ret = errno;
+			goto error;
+		}
 		break;
 	default:
 		ERR("Socks5 connect domain unknown %d",
@@ -189,17 +207,33 @@ int socks5_connect(struct connection *conn)
 
 	do {
 		/* Use the original libc connect() to the Tor. */
-		ret = tsocks_libc_connect(conn->fd, socks5_addr, len);
-	} while (ret < 0 &&
-			(errno == EINTR || errno == EINPROGRESS || errno == EALREADY));
+		ret = tsocks_libc_connect(conn->tor_fd, socks5_addr, len);
+		if (ret < 0) {
+			/* All other errno are failures */
+			switch (errno) {
+			case EINTR:
+			case EINPROGRESS:
+			case EALREADY:
+				/* Soft-failure, try again. */
+				try_again = 1;
+				break;
+			case EISCONN:
+				/* Success after previous soft-failures,
+				 * break the loop; fall-through. */
+			default:
+				try_again = 0;
+			}
+		}
+	} while (try_again);
+
 	if (ret < 0) {
 		/* The non blocking socket is now connected. */
 		if (errno == EISCONN) {
 			ret = 0;
-			goto error;
+		} else {
+			ret = -errno;
+			PERROR("socks5 libc connect");
 		}
-		ret = -errno;
-		PERROR("socks5 libc connect");
 	}
 
 error:
@@ -219,7 +253,7 @@ int socks5_send_method(struct connection *conn, uint8_t type)
 	struct socks5_method_req msg;
 
 	assert(conn);
-	assert(conn->fd >= 0);
+	assert(conn->tor_fd >= 0);
 
 	msg.ver = SOCKS5_VERSION;
 	msg.nmethods = 0x01;
@@ -228,7 +262,7 @@ int socks5_send_method(struct connection *conn, uint8_t type)
 	DBG("Socks5 sending method ver: %d, nmethods 0x%02x, methods 0x%02x",
 			msg.ver, msg.nmethods, msg.methods);
 
-	ret_send = send_data(conn->fd, &msg, sizeof(msg));
+	ret_send = send_data(conn->tor_fd, &msg, sizeof(msg));
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -251,9 +285,9 @@ int socks5_recv_method(struct connection *conn)
 	struct socks5_method_res msg;
 
 	assert(conn);
-	assert(conn->fd >= 0);
+	assert(conn->tor_fd >= 0);
 
-	ret_recv = recv_data(conn->fd, &msg, sizeof(msg));
+	ret_recv = recv_data(conn->tor_fd, &msg, sizeof(msg));
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -295,7 +329,7 @@ int socks5_send_user_pass_request(struct connection *conn,
 		(SOCKS5_USERNAME_LEN + SOCKS5_PASSWORD_LEN)];
 
 	assert(conn);
-	assert(conn->fd >= 0);
+	assert(conn->tor_fd >= 0);
 	assert(user);
 	assert(pass);
 
@@ -322,7 +356,7 @@ int socks5_send_user_pass_request(struct connection *conn,
 	memcpy(buffer + data_len, pass, pass_len);
 	data_len += pass_len;
 
-	ret_send = send_data(conn->fd, buffer, data_len);
+	ret_send = send_data(conn->tor_fd, buffer, data_len);
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -350,9 +384,9 @@ int socks5_recv_user_pass_reply(struct connection *conn)
 	struct socks5_user_pass_reply msg;
 
 	assert(conn);
-	assert(conn->fd >= 0);
+	assert(conn->tor_fd >= 0);
 
-	ret_recv = recv_data(conn->fd, &msg, sizeof(msg));
+	ret_recv = recv_data(conn->tor_fd, &msg, sizeof(msg));
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -387,7 +421,7 @@ int socks5_send_connect_request(struct connection *conn)
 	struct socks5_request msg;
 
 	assert(conn);
-	assert(conn->fd >= 0);
+	assert(conn->tor_fd >= 0);
 
 	memset(buffer, 0, sizeof(buffer));
 	buf_len = sizeof(msg);
@@ -462,9 +496,9 @@ int socks5_send_connect_request(struct connection *conn)
 		goto error;
 	}
 
-	DBG("Socks5 sending connect request to fd %d", conn->fd);
+	DBG("Socks5 sending connect request to fd %d", conn->tor_fd);
 
-	ret_send = send_data(conn->fd, &buffer, buf_len);
+	ret_send = send_data(conn->tor_fd, &buffer, buf_len);
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -492,7 +526,7 @@ int socks5_recv_connect_reply(struct connection *conn)
 	size_t recv_len;
 
 	assert(conn);
-	assert(conn->fd >= 0);
+	assert(conn->tor_fd >= 0);
 
 	/* Beginning of the payload we are receiving. */
 	recv_len = sizeof(msg);
@@ -502,7 +536,7 @@ int socks5_recv_connect_reply(struct connection *conn)
 	switch (conn->dest_addr.domain) {
 	case CONNECTION_DOMAIN_NAME:
 		/*
-		 * Tor returns and IPv4 upon resolution. Same for .onion address.
+		 * Tor returns an IPv4 upon resolution. Same for .onion address.
 		 */
 	case CONNECTION_DOMAIN_INET:
 		recv_len+= 4;
@@ -510,9 +544,14 @@ int socks5_recv_connect_reply(struct connection *conn)
 	case CONNECTION_DOMAIN_INET6:
 		recv_len += 16;
 		break;
+	case CONNECTION_DOMAIN_UNIX:
+	case CONNECTION_DOMAIN_NOT_KNOWN:
+		ERR("Invalid destination socket domain.");
+		ret = -EBADF;
+		goto error;
 	}
 
-	ret_recv = recv_data(conn->fd, buffer, recv_len);
+	ret_recv = recv_data(conn->tor_fd, buffer, recv_len);
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -590,7 +629,7 @@ int socks5_send_resolve_request(const char *hostname, struct connection *conn)
 
 	assert(hostname);
 	assert(conn);
-	assert(conn->fd >= 0);
+	assert(conn->tor_fd >= 0);
 
 	memset(buffer, 0, sizeof(buffer));
 	memset(&req, 0, sizeof(req));
@@ -628,7 +667,7 @@ int socks5_send_resolve_request(const char *hostname, struct connection *conn)
 	memcpy(buffer + data_len, &req.port, sizeof(req.port));
 	data_len += sizeof(req.port);
 
-	ret_send = send_data(conn->fd, &buffer, data_len);
+	ret_send = send_data(conn->tor_fd, &buffer, data_len);
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -664,10 +703,10 @@ int socks5_recv_resolve_reply(struct connection *conn, void *addr,
 	} buffer;
 
 	assert(conn);
-	assert(conn->fd >= 0);
+	assert(conn->tor_fd >= 0);
 	assert(addr);
 
-	ret_recv = recv_data(conn->fd, &buffer, sizeof(buffer.msg));
+	ret_recv = recv_data(conn->tor_fd, &buffer, sizeof(buffer.msg));
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -697,7 +736,7 @@ int socks5_recv_resolve_reply(struct connection *conn, void *addr,
 		goto error;
 	}
 
-	ret_recv = recv_data(conn->fd, &buffer.addr, recv_len);
+	ret_recv = recv_data(conn->tor_fd, &buffer.addr, recv_len);
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -736,7 +775,7 @@ int socks5_send_resolve_ptr_request(struct connection *conn, const void *ip, int
 	unsigned char buffer[sizeof(msg) + sizeof(req)];
 
 	assert(conn);
-	assert(conn->fd >= 0);
+	assert(conn->tor_fd >= 0);
 
 	DBG("[socks5] Resolve ptr request for ip %u", ip);
 
@@ -777,7 +816,7 @@ int socks5_send_resolve_ptr_request(struct connection *conn, const void *ip, int
 	memcpy(buffer + data_len, &req.port, sizeof(req.port));
 	data_len += sizeof(req.port);
 
-	ret_send = send_data(conn->fd, &buffer, data_len);
+	ret_send = send_data(conn->tor_fd, &buffer, data_len);
 	if (ret_send < 0) {
 		ret = ret_send;
 		goto error;
@@ -810,10 +849,10 @@ int socks5_recv_resolve_ptr_reply(struct connection *conn, char **_hostname)
 	} buffer;
 
 	assert(conn);
-	assert(conn->fd >= 0);
+	assert(conn->tor_fd >= 0);
 	assert(_hostname);
 
-	ret_recv = recv_data(conn->fd, &buffer, sizeof(buffer));
+	ret_recv = recv_data(conn->tor_fd, &buffer, sizeof(buffer));
 	if (ret_recv < 0) {
 		ret = ret_recv;
 		goto error;
@@ -838,7 +877,7 @@ int socks5_recv_resolve_ptr_reply(struct connection *conn, char **_hostname)
 			ret = -ENOMEM;
 			goto error;
 		}
-		ret_recv = recv_data(conn->fd, hostname, buffer.len);
+		ret_recv = recv_data(conn->tor_fd, hostname, buffer.len);
 		if (ret_recv < 0) {
 			ret = ret_recv;
 			goto error;

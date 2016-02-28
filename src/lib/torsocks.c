@@ -364,7 +364,7 @@ static int setup_tor_connection(struct connection *conn,
 
 	assert(conn);
 
-	DBG("Setting up a connection to the Tor network on fd %d", conn->fd);
+	DBG("Setting up a connection to the Tor network on fd %d", conn->app_fd);
 
 	ret = socks5_connect(conn);
 	if (ret < 0) {
@@ -373,11 +373,15 @@ static int setup_tor_connection(struct connection *conn,
 
 	ret = socks5_send_method(conn, socks5_method);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
 	ret = socks5_recv_method(conn);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
@@ -441,11 +445,15 @@ auth_socks5(struct connection *conn)
 			tsocks_config.conf_file.socks5_username,
 			tsocks_config.conf_file.socks5_password);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
 	ret = socks5_recv_user_pass_reply(conn);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
@@ -469,7 +477,7 @@ int tsocks_connect_to_tor(struct connection *conn)
 
 	assert(conn);
 
-	DBG("Connecting to the Tor network on fd %d", conn->fd);
+	DBG("Connecting to the Tor network on fd %d", conn->app_fd);
 
 	/* Is this configuration is set to use SOCKS5 authentication. */
 	if (tsocks_config.socks5_use_auth) {
@@ -480,6 +488,8 @@ int tsocks_connect_to_tor(struct connection *conn)
 
 	ret = setup_tor_connection(conn, socks5_method);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
@@ -487,17 +497,23 @@ int tsocks_connect_to_tor(struct connection *conn)
 	if (socks5_method == SOCKS5_USER_PASS_METHOD) {
 		ret = auth_socks5(conn);
 		if (ret < 0) {
+			errno = ret;
+			ret = -1;
 			goto error;
 		}
 	}
 
 	ret = socks5_send_connect_request(conn);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
 	ret = socks5_recv_connect_reply(conn);
 	if (ret < 0) {
+		errno = ret;
+		ret = -1;
 		goto error;
 	}
 
@@ -559,8 +575,11 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 		}
 	}
 
-	conn.fd = tsocks_libc_socket(af, SOCK_STREAM, IPPROTO_TCP);
-	if (conn.fd < 0) {
+	/* We assert this value is true in setup_tor_connection() so assign
+	 * a valid socket fd number.
+	 */
+	conn.app_fd = tsocks_libc_socket(af, SOCK_STREAM, IPPROTO_TCP);
+	if (conn.app_fd < 0) {
 		PERROR("socket");
 		ret = -errno;
 		goto error;
@@ -573,7 +592,12 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 		socks5_method = SOCKS5_NO_AUTH_METHOD;
 	}
 
+	connection_registry_lock();
+	connection_insert(&conn);
+	connection_registry_unlock();
 	ret = setup_tor_connection(&conn, socks5_method);
+
+	DBG("Socket created for resolve, fd %d", conn.tor_fd);
 	if (ret < 0) {
 		goto end_close;
 	}
@@ -582,23 +606,27 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 	if (socks5_method == SOCKS5_USER_PASS_METHOD) {
 		ret = auth_socks5(&conn);
 		if (ret < 0) {
-			goto end_close;
+			goto tor_close;
 		}
 	}
 
 	ret = socks5_send_resolve_request(hostname, &conn);
 	if (ret < 0) {
-		goto end_close;
+		goto tor_close;
 	}
 
 	/* Force IPv4 resolution for now. */
 	ret = socks5_recv_resolve_reply(&conn, ip_addr, addr_len);
 	if (ret < 0) {
-		goto end_close;
+		goto tor_close;
 	}
 
+tor_close:
+	if (tsocks_libc_close(conn.tor_fd) < 0) {
+		PERROR("close");
+	}
 end_close:
-	if (tsocks_libc_close(conn.fd) < 0) {
+	if (tsocks_libc_close(conn.app_fd) < 0) {
 		PERROR("close");
 	}
 end:
@@ -622,22 +650,30 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 
 	DBG("Resolving %" PRIu32 " on the Tor network", addr);
 
-	conn.fd = tsocks_libc_socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (conn.fd < 0) {
+	/* We assert this value is true in setup_tor_connection() so assign
+	 * a valid socket fd number.
+	 */
+	conn.app_fd = tsocks_libc_socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (conn.app_fd < 0) {
 		PERROR("socket");
 		ret = -errno;
 		goto error;
 	}
 	conn.dest_addr.domain = CONNECTION_DOMAIN_INET;
 
-	/* Is this configuration is set to use SOCKS5 authentication. */
+	/* If this configuration is set to use SOCKS5 authentication. */
 	if (tsocks_config.socks5_use_auth) {
 		socks5_method = SOCKS5_USER_PASS_METHOD;
 	} else {
 		socks5_method = SOCKS5_NO_AUTH_METHOD;
 	}
 
+	connection_registry_lock();
+	connection_insert(&conn);
+	connection_registry_unlock();
 	ret = setup_tor_connection(&conn, socks5_method);
+
+	DBG("Socket created for ptr resolve, fd %d", conn.tor_fd);
 	if (ret < 0) {
 		goto end_close;
 	}
@@ -646,23 +682,27 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 	if (socks5_method == SOCKS5_USER_PASS_METHOD) {
 		ret = auth_socks5(&conn);
 		if (ret < 0) {
-			goto end_close;
+			goto tor_close;
 		}
 	}
 
 	ret = socks5_send_resolve_ptr_request(&conn, addr, af);
 	if (ret < 0) {
-		goto end_close;
+		goto tor_close;
 	}
 
 	/* Force IPv4 resolution for now. */
 	ret = socks5_recv_resolve_ptr_reply(&conn, ip);
 	if (ret < 0) {
-		goto end_close;
+		goto tor_close;
 	}
 
+tor_close:
+	if (tsocks_libc_close(conn.tor_fd) < 0) {
+		PERROR("close");
+	}
 end_close:
-	if (tsocks_libc_close(conn.fd) < 0) {
+	if (tsocks_libc_close(conn.app_fd) < 0) {
 		PERROR("close");
 	}
 
