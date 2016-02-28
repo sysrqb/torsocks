@@ -21,6 +21,7 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include "defaults.h"
 #include "ht.h"
@@ -28,13 +29,15 @@
 #include "ref.h"
 
 enum connection_domain {
+	CONNECTION_DOMAIN_NOT_KNOWN,
 	CONNECTION_DOMAIN_INET	= 1,
 	CONNECTION_DOMAIN_INET6	= 2,
 	CONNECTION_DOMAIN_NAME  = 3,
+	CONNECTION_DOMAIN_UNIX  = 4,
 };
 
 /*
- * Connection address which both supports IPv4 and IPv6.
+ * Connection address which supports IPv4, IPv6, and Unix domain.
  */
 struct connection_addr {
 	enum connection_domain domain;
@@ -47,6 +50,7 @@ struct connection_addr {
 	union {
 		struct sockaddr_in sin;
 		struct sockaddr_in6 sin6;
+		struct sockaddr_un sun;
 	} u;
 };
 
@@ -55,10 +59,14 @@ struct connection_addr {
  * connect(2) hijacked call.
  */
 struct connection {
-	/* Socket fd and also unique ID. */
-	int fd;
+	/* Socket fd created for the application and also used as a unique
+	 * connection HT key. */
+	int app_fd;
 
-	/* Remote destination that passes through Tor. */
+	/* Socket fd created by torsocks for its connection with Tor */
+	int tor_fd;
+
+	/* Remote destination (Internet) connection that passes through Tor. */
 	struct connection_addr dest_addr;
 
 	/*

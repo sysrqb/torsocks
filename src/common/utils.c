@@ -20,6 +20,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -42,6 +43,8 @@ static const char *localhost_names_v4[] = {
 static const char *localhost_names_v6[] = {
 	"localhost", "ip6-loopback", "ip6-localhost", NULL,
 };
+
+static const char *unix_prefix = "unix:";
 
 /*
  * Return 1 if the given IP belongs in the af domain else return a negative
@@ -108,6 +111,30 @@ int utils_is_address_ipv6(const char *ip)
 {
 	return check_addr(ip, AF_INET6);
 }
+
+/*
+ * Return 1 if the given IP is an IPv6.
+ */
+ATTR_HIDDEN
+int utils_is_address_unix_domain(const char *address)
+{
+	struct sockaddr_un sa;
+	if (strlen(address) < strlen(unix_prefix))
+		return -1;
+	if (strlen(address) > sizeof sa.sun_path)
+		return -1;
+	if (strncmp(address, unix_prefix, strlen(unix_prefix)))
+		return -1;
+	return 1;
+}
+
+ATTR_HIDDEN
+const char *utils_unix_socket_path(const char *path) {
+	if (utils_is_address_unix_domain(path) == -1)
+		return NULL;
+	return path + strlen(unix_prefix);
+}
+
 
 /*
  * This routines breaks up input lines into tokens and places these tokens into

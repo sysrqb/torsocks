@@ -21,6 +21,7 @@
 
 #include "connection.h"
 #include "macros.h"
+#include "utils.h"
 
 /*
  * Connection registry mutex.
@@ -49,7 +50,7 @@ static void release_conn(struct ref *ref)
 static inline int conn_equal_fct(struct connection *c1,
 		struct connection *c2)
 {
-	return (c1->fd == c2->fd);
+	return (c1->app_fd == c2->app_fd);
 }
 
 /*
@@ -74,9 +75,9 @@ static inline unsigned int conn_hash_fct(struct connection *c)
 		break;
 	}
 
-	return (((unsigned int)(c->fd) << 8) ^
-				((unsigned int)((c->fd >> sizeof(mask)) & mask)) ^
-				((unsigned int)(c->fd & mask)));
+	return (((unsigned int)(c->app_fd) << 8) ^
+				((unsigned int)((c->app_fd >> sizeof(mask)) & mask)) ^
+				((unsigned int)(c->app_fd & mask)));
 }
 
 /*
@@ -107,49 +108,63 @@ void connection_registry_unlock(void)
 }
 
 /*
- * Set an already allocated connection address using the given IPv4/6 address,
- * domain and port.
+ * Set an already allocated connection address using the given address (IPv4/6
+ * or file path), domain and port (if applicable).
  *
  * Return 0 on success or else a negative value.
  */
 ATTR_HIDDEN
-int connection_addr_set(enum connection_domain domain, const char *ip,
+int connection_addr_set(enum connection_domain domain, const char *ipaddr,
 		in_port_t port, struct connection_addr *addr)
 {
 	int ret;
+	const char *perror_err;
 
-	assert(ip);
+	assert(ipaddr);
 	assert(addr);
-
-	if (port == 0 || port >= 65535) {
-		ret = -EINVAL;
-		ERR("Connection addr set port out of range: %d", port);
-		goto error;
-	}
 
 	memset(addr, 0, sizeof(*addr));
 
 	switch (domain) {
 	case CONNECTION_DOMAIN_INET:
+	case CONNECTION_DOMAIN_INET6:
+		if (port == 0 || port >= 65535) {
+			ret = -EINVAL;
+			ERR("Connection addr set port out of range: %d", port);
+			goto error;
+		}
 		addr->domain = domain;
-		addr->u.sin.sin_family = AF_INET;
-		addr->u.sin.sin_port = htons(port);
-		ret = inet_pton(addr->u.sin.sin_family, ip,
-				&addr->u.sin.sin_addr);
+		if (domain == CONNECTION_DOMAIN_INET) {
+			addr->u.sin.sin_family = AF_INET;
+			addr->u.sin.sin_port = htons(port);
+			ret = inet_pton(addr->u.sin.sin_family, ipaddr,
+					&addr->u.sin.sin_addr);
+			perror_err = "Connection addr set inet_pton";
+		} else if (domain == CONNECTION_DOMAIN_INET6) {
+			addr->u.sin6.sin6_family = AF_INET6;
+			addr->u.sin6.sin6_port = htons(port);
+			ret = inet_pton(addr->u.sin6.sin6_family, ipaddr,
+					&addr->u.sin6.sin6_addr);
+			perror_err = "Connection addr6 set inet_pton";
+		} else {
+			ret = -1;
+			perror_err = "Connection family not known in set " "inet_pton";
+		}
+			/* Only for defensive purposes. */
 		if (ret != 1) {
-			PERROR("Connection addr set inet_pton");
+			PERROR("%s", perror_err);
 			ret = -EINVAL;
 			goto error;
 		}
 		break;
-	case CONNECTION_DOMAIN_INET6:
+	case CONNECTION_DOMAIN_UNIX:
 		addr->domain = domain;
-		addr->u.sin6.sin6_family = AF_INET6;
-		addr->u.sin6.sin6_port = htons(port);
-		ret = inet_pton(addr->u.sin6.sin6_family, ip,
-				&addr->u.sin6.sin6_addr);
-		if (ret != 1) {
-			PERROR("Connection addr6 set inet_pton");
+		addr->u.sun.sun_family = AF_UNIX;
+		memcpy(addr->u.sun.sun_path,
+			utils_unix_socket_path(ipaddr),
+			sizeof(addr->u.sun.sun_path));
+		if (addr->u.sun.sun_path == NULL) {
+			PERROR("Connection unix socket dup path");
 			ret = -EINVAL;
 			goto error;
 		}
@@ -201,7 +216,7 @@ struct connection *connection_create(int fd, const struct sockaddr *dest)
 		}
 	}
 
-	conn->fd = fd;
+	conn->app_fd = fd;
 	connection_get_ref(conn);
 
 	return conn;
@@ -219,7 +234,7 @@ struct connection *connection_find(int key)
 {
 	struct connection c_tmp;
 
-	c_tmp.fd = key;
+	c_tmp.app_fd = key;
 	return HT_FIND(connection_registry, &connection_registry_root, &c_tmp);
 }
 
@@ -234,7 +249,7 @@ void connection_insert(struct connection *conn)
 	assert(conn);
 
 	/* An existing element is a code flow error. */
-	c_tmp = connection_find(conn->fd);
+	c_tmp = connection_find(conn->app_fd);
 	assert(!c_tmp);
 
 	HT_INSERT(connection_registry, &connection_registry_root, conn);
