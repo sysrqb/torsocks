@@ -38,18 +38,6 @@ TSOCKS_LIBC_DECL(sendto, LIBC_SENDTO_RET_TYPE, LIBC_SENDTO_SIG)
 TSOCKS_LIBC_DECL(sendmsg, LIBC_SENDMSG_RET_TYPE, LIBC_SENDMSG_SIG)
 
 /*
- * Close all fds in the given array of size count.
- */
-static void close_fds(int *fds, size_t count)
-{
-	int i;
-
-	for (i = 0; i < count; i++) {
-		tsocks_libc_close(fds[i]);
-	}
-}
-
-/*
  * Torsocks call for send(2)
  *
  * We hijack this call so we can splice together the app<->torsocks
