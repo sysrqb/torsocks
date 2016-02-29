@@ -15,6 +15,7 @@
  * Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <stdlib.h>
 #include <common/connection.h>
 #include <common/log.h>
 
@@ -23,19 +24,36 @@
 /* shutdown(2) */
 TSOCKS_LIBC_DECL(shutdown, LIBC_SHUTDOWN_RET_TYPE, LIBC_SHUTDOWN_SIG)
 
+static
+char * get_how_str(int how, char **str)
+{
+	if ((how & SHUT_RD) == 0)
+		*str = strdup("SHUT_RD");
+	else if ((how & SHUT_WR) == 0)
+		*str = strdup("SHUT_WR");
+	else if ((how & SHUT_RDWR) == 0)
+		*str = strdup("SHUT_RDWR");
+	else
+		*str = strdup("<not known>");
+	return *str;
+}
 /*
  * Torsocks call for shutdown(2).
  */
 LIBC_SHUTDOWN_RET_TYPE tsocks_shutdown(LIBC_SHUTDOWN_SIG)
 {
 	struct connection *conn;
+	/* Make the compiler happy about this not being explicitly set */
+	char *how_str = NULL;
 
-	DBG("Shutdown catched for fd %d", sockfd);
+	DBG("Shutdown catched for fd %d, %s", sockfd,
+		get_how_str(how, &how_str));
+	free(how_str);
 
 	connection_registry_lock();
 	conn = connection_find(sockfd);
 	if (conn) {
-		int tsocks_fd = conn->tsocks_fd;
+		int tor_fd = conn->tor_fd;
 		/*
 		 * Remove from the registry so it's not visible anymore and thus using
 		 * it without lock.
@@ -47,7 +65,7 @@ LIBC_SHUTDOWN_RET_TYPE tsocks_shutdown(LIBC_SHUTDOWN_SIG)
 		 */
 		DBG("Shutdown connection putting back ref");
 		connection_put_ref(conn);
-		return tsocks_libc_shutdown(tsocks_fd, how);
+		return tsocks_libc_shutdown(tor_fd, how);
 	}
 	connection_registry_unlock();
 
