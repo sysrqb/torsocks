@@ -41,7 +41,7 @@ LIBC_WRITE_RET_TYPE tsocks_write(LIBC_WRITE_SIG)
 
 	conn = connection_find(fd);
 	if (conn)
-		fd = conn->tsocks_fd;
+		fd = conn->tor_fd;
 	return tsocks_libc_write(LIBC_WRITE_ARGS);
 }
 

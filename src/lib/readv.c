@@ -43,7 +43,7 @@ LIBC_READV_RET_TYPE tsocks_readv(LIBC_READV_SIG)
 		return tsocks_libc_readv(LIBC_READV_ARGS);
 	conn = connection_find(fd);
 	if (conn)
-		fd = conn->tsocks_fd;
+		fd = conn->tor_fd;
 	return tsocks_libc_readv(LIBC_READV_ARGS);
 }
 

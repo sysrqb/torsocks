@@ -642,7 +642,6 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 		ret = -errno;
 		goto error;
 	}
-	conn.app_fd = conn.tsocks_fd;
 	conn.dest_addr.domain = CONNECTION_DOMAIN_INET;
 
 	/* If this configuration is set to use SOCKS5 authentication. */

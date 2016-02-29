@@ -48,7 +48,7 @@ LIBC_SEND_RET_TYPE tsocks_send(LIBC_SEND_SIG)
 	struct connection *conn;
 
 	conn = connection_find(sockfd);
-	sockfd = conn->tsocks_fd;
+	sockfd = conn->tor_fd;
 	return tsocks_libc_send(LIBC_SEND_ARGS);
 }
 
@@ -102,7 +102,7 @@ LIBC_SENDMSG_RET_TYPE tsocks_sendmsg(LIBC_SENDMSG_SIG)
 	struct connection *conn;
 
 	conn = connection_find(sockfd);
-	sockfd = conn->tsocks_fd;
+	sockfd = conn->tor_fd;
 	return tsocks_libc_sendmsg(LIBC_SENDMSG_ARGS);
 }
 

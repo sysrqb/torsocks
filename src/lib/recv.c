@@ -64,7 +64,7 @@ LIBC_RECV_RET_TYPE tsocks_recv(LIBC_RECV_SIG)
 	struct connection *conn;
 
 	conn = connection_find(sockfd);
-	sockfd = conn->tsocks_fd;
+	sockfd = conn->tor_fd;
 	return tsocks_libc_recv(LIBC_RECV_ARGS);
 }
 
@@ -79,7 +79,7 @@ LIBC_RECVFROM_RET_TYPE tsocks_recvfrom(LIBC_RECVFROM_SIG)
 	struct connection *conn;
 
 	conn = connection_find(sockfd);
-	sockfd = conn->tsocks_fd;
+	sockfd = conn->tor_fd;
 	return tsocks_libc_recvfrom(LIBC_RECVFROM_ARGS);
 }
 
