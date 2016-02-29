@@ -580,7 +580,7 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 	connection_registry_unlock();
 	ret = setup_tor_connection(&conn, socks5_method);
 
-	DBG("Socket created for resolve, fd %d", conn.tsocks_fd);
+	DBG("Socket created for resolve, fd %d", conn.tor_fd);
 	if (ret < 0) {
 		goto end_close;
 	}
@@ -656,7 +656,7 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 	connection_registry_unlock();
 	ret = setup_tor_connection(&conn, socks5_method);
 
-	DBG("Socket created for ptr resolve, fd %d", conn.tsocks_fd);
+	DBG("Socket created for ptr resolve, fd %d", conn.tor_fd);
 	if (ret < 0) {
 		goto end_close;
 	}
