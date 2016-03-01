@@ -31,7 +31,7 @@ LIBC_FOPEN_RET_TYPE tsocks_fopen(LIBC_FOPEN_SIG)
 /*
  * Torsocks call for fdopen(3).
  */
-LIBC_FDOPEN_RET_TYPE tsocks_fdopen(LIBC_FDOPEN_SIG)
+LIBC_FDOPEN_RET_TYPE tor_fdopen(LIBC_FDOPEN_SIG)
 {
 	FILE *file;
 	DBG("[fdopen] Open caught for fd %d, '%s'", fd, mode);
@@ -88,7 +88,7 @@ LIBC_FDOPEN_DECL
 				LIBC_FDOPEN_NAME_STR, TSOCKS_SYM_EXIT_NOT_FOUND);
 	}
 
-	return tsocks_fdopen(LIBC_FDOPEN_ARGS);
+	return tor_fdopen(LIBC_FDOPEN_ARGS);
 }
 
 /*

@@ -385,16 +385,16 @@ int connection_conn_list_find_and_replace_select(fd_set *fds,
 				/* This is a bug, but segfaulting is sad */
 				continue;
 			FD_CLR(fd, fds);
-			FD_SET(conn->tsocks_fd, fds);
-			DBG("Replaced fd %d with %d in fd_set.", fd, conn->tsocks_fd);
-			if (conn->tsocks_fd > max)
-				max = conn->tsocks_fd;
+			FD_SET(conn->tor_fd, fds);
+			DBG("Replaced fd %d with %d in fd_set.", fd, conn->tor_fd);
+			if (conn->tor_fd > max)
+				max = conn->tor_fd;
 			(*replaced)[rep_idx] = calloc(2, sizeof(***replaced));
 			if ((*replaced)[rep_idx] == NULL) {
 				*len = rep_idx;
 				return max;
 			}
-			(*replaced)[rep_idx][0] = conn->tsocks_fd;
+			(*replaced)[rep_idx][0] = conn->tor_fd;
 			(*replaced)[rep_idx++][1] = fd;
 		}
 	}
@@ -434,14 +434,14 @@ void connection_conn_list_find_and_replace_poll(struct pollfd *fds, nfds_t nfds,
 				if (conn == NULL)
 					/* This is a bug, but segfaulting is sad */
 					continue;
-				fds[j].fd = conn->tsocks_fd;
-				DBG("Replaced fd %d with %d in pollfd.", fd, conn->tsocks_fd);
+				fds[j].fd = conn->tor_fd;
+				DBG("Replaced fd %d with %d in pollfd.", fd, conn->tor_fd);
 				(*replaced)[rep_idx] = calloc(2, sizeof(***replaced));
 				if ((*replaced)[rep_idx] == NULL) {
 					*len = rep_idx;
 					return;
 				}
-				(*replaced)[rep_idx][0] = conn->tsocks_fd;
+				(*replaced)[rep_idx][0] = conn->tor_fd;
 				(*replaced)[rep_idx++][1] = fd;
 			}
 		}

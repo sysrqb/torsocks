@@ -50,7 +50,7 @@ LIBC_SELECT_RET_TYPE tsocks_select(LIBC_SELECT_SIG)
 	/* Find all the fds in readfds whose connections we are currently
 	 * hijacking and replace them with our tsocks fd.
 	 *
-	 * read_replaced_fds will be a list of (tsocks_fd, app_fd) pairs of
+	 * read_replaced_fds will be a list of (tor_fd, app_fd) pairs of
 	 * all the fds we replaced, and it has a size of read_replaced_len.
 	 */
 	new_nfds = connection_conn_list_find_and_replace_select(readfds,
@@ -98,7 +98,7 @@ LIBC_PSELECT_RET_TYPE tsocks_pselect(LIBC_PSELECT_SIG)
 	/* Find all the fds in readfds whose connections we are currently
 	 * hijacking and replace them with our tsocks fd.
 	 *
-	 * read_replaced_fds will be a list of (tsocks_fd, app_fd) pairs of
+	 * read_replaced_fds will be a list of (tor_fd, app_fd) pairs of
 	 * all the fds we replaced, and it has a size of read_replaced_len.
 	 */
 	new_nfds = connection_conn_list_find_and_replace_select(readfds,
