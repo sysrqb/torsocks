@@ -107,6 +107,11 @@ LIBC_SENDMSG_RET_TYPE tsocks_sendmsg(LIBC_SENDMSG_SIG)
 	struct connection *conn;
 
 	conn = connection_find(sockfd);
+	if (conn == NULL) {
+		ERR("[send] Connection lookup failed for fd %d", sockfd);
+		errno = EBADF;
+		return -1;
+	}
 	sockfd = conn->tor_fd;
 	return tsocks_libc_sendmsg(LIBC_SENDMSG_ARGS);
 }

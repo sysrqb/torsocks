@@ -39,8 +39,6 @@ LIBC_READV_RET_TYPE tsocks_readv(LIBC_READV_SIG)
 {
 	struct connection *conn;
 
-	if (fd == 0)
-		return tsocks_libc_readv(LIBC_READV_ARGS);
 	conn = connection_find(fd);
 	if (conn)
 		fd = conn->tor_fd;
