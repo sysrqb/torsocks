@@ -21,9 +21,9 @@ LIBC_FOPEN_RET_TYPE tsocks_fopen(LIBC_FOPEN_SIG)
 	file = tsocks_libc_fopen(LIBC_FOPEN_ARGS);
 	if (file != NULL) {
 		fd = fileno(file);
-		DBG("[fopen] Open returned FILE stream %#x, fd %d", file, fd);
+		DBG("[fopen] libc returned FILE stream %#x, fd %d", file, fd);
 	} else {
-		DBG("[fopen] Open returned NULL, %s", strerror(errno));
+		DBG("[fopen] libc returned NULL, %s", strerror(errno));
 	}
 	return file;
 }
@@ -35,12 +35,12 @@ LIBC_FDOPEN_RET_TYPE tor_fdopen(LIBC_FDOPEN_SIG)
 {
 	FILE *file;
 	DBG("[fdopen] Open caught for fd %d, '%s'", fd, mode);
-        
+
 	file = tsocks_libc_fdopen(LIBC_FDOPEN_ARGS);
 	if (file != NULL) {
-		DBG("[fdopen] Open returned FILE stream %#x", file);
+		DBG("[fdopen] libc returned FILE stream %#x", file);
 	} else {
-		DBG("[fdopen] Open returned NULL, %s", strerror(errno));
+		DBG("[fdopen] libc returned NULL, %s", strerror(errno));
 	}
 	return file;
 }
@@ -54,13 +54,13 @@ LIBC_FREOPEN_RET_TYPE tsocks_freopen(LIBC_FREOPEN_SIG)
 
 	DBG("[freopen] Reopen caught on file '%s', reopening on %x",
 	    path, stream);
-        
+
 	file = tsocks_libc_freopen(LIBC_FREOPEN_ARGS);
 	if (file != NULL) {
 		fd = fileno(file);
-		DBG("[freopen] Reopen returned FILE stream %#x, fd %d", file, fd);
+		DBG("[freopen] libc returned FILE stream %#x, fd %d", file, fd);
 	} else {
-		DBG("[freopen] Reopen returned NULL, %s", strerror(errno));
+		DBG("[freopen] libc returned NULL, %s", strerror(errno));
 	}
 	return file;
 }
