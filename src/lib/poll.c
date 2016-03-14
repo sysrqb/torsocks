@@ -5,8 +5,10 @@
 
 /* poll(2) */
 TSOCKS_LIBC_DECL(poll, LIBC_POLL_RET_TYPE, LIBC_POLL_SIG)
+#if (defined(__linux__))
 /* ppoll(2) */
 TSOCKS_LIBC_DECL(ppoll, LIBC_PPOLL_RET_TYPE, LIBC_PPOLL_SIG)
+#endif /* __linux__ */
 
 /*
  * Replace tsocks fd with app fd
@@ -64,6 +66,7 @@ LIBC_POLL_RET_TYPE tsocks_poll(LIBC_POLL_SIG)
 	return retval;
 }
 
+#if (defined(__linux__))
 /*
  * Torsocks call for ppoll(2).
  */
@@ -91,6 +94,7 @@ LIBC_PPOLL_RET_TYPE tsocks_ppoll(LIBC_PPOLL_SIG)
 	poll_restore_fds_and_free(fds, nfds, replaced_fds, replaced_len);
 	return retval;
 }
+#endif /* __linux__ */
 
 /*
  * Libc hijacked symbol poll(2).
@@ -105,6 +109,7 @@ LIBC_POLL_DECL
 	return tsocks_poll(LIBC_POLL_ARGS);
 }
 
+#if (defined(__linux__))
 /*
  * Libc hijacked symbol ppoll(2).
  */
@@ -117,3 +122,4 @@ LIBC_PPOLL_DECL
 
 	return tsocks_ppoll(LIBC_PPOLL_ARGS);
 }
+#endif /* __linux__ */
