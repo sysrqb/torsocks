@@ -385,6 +385,7 @@ struct hostent **result, int *h_errnop
 
 /* ppoll(2) */
 #define _GNU_SOURCE
+#include <signal.h>
 #include <poll.h>
 
 #define LIBC_PPOLL_NAME ppoll
