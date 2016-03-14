@@ -15,6 +15,14 @@
  * Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#if defined(__linux__)
+/* This is necessary, apparently one of the below #include lines includes
+ * poll.h, too. We must include it with _GNU_SOURCE first. */
+#define _GNU_SOURCE
+#include <signal.h>
+#include <poll.h>
+#endif /* __linux__ */
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -22,7 +30,6 @@
 #include <unistd.h>
 
 #include <lib/torsocks.h>
-#include <poll.h>
 
 #include <tap/tap.h>
 
