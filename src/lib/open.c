@@ -14,7 +14,7 @@ LIBC_OPEN_RET_TYPE tsocks_open(LIBC_OPEN_SIG)
 
 	DBG("[open] Open caught on file '%s'", file);
 	va_start(mode, oflag);
-        
+
 	fd = tsocks_libc_open(LIBC_OPEN_ARGS);
 	if (fd == -1) {
 		DBG("[open] Open failed. '%s'", strerror(errno));
