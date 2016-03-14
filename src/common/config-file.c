@@ -160,15 +160,15 @@ static enum connection_domain address_type(const char *addr) {
 
 	ret = utils_is_address_ipv4(addr);
 	if (ret == 1)
-            return CONNECTION_DOMAIN_INET;
+		return CONNECTION_DOMAIN_INET;
 
 	ret = utils_is_address_ipv6(addr);
 	if (ret == 1)
-            return CONNECTION_DOMAIN_INET6;
+		return CONNECTION_DOMAIN_INET6;
 
 	ret = utils_is_address_unix_domain(addr);
 	if (ret == 1)
-            return CONNECTION_DOMAIN_UNIX;
+		return CONNECTION_DOMAIN_UNIX;
 
 	return CONNECTION_DOMAIN_NOT_KNOWN;
 }
