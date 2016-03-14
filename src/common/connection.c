@@ -168,7 +168,8 @@ int connection_addr_set(enum connection_domain domain, const char *ipaddr,
 		} else {
 			/* Only for defensive purposes. */
 			ret = -1;
-			perror_err = "Connection family not known in set " "inet_pton";
+			perror_err = "Connection family not known in set "
+					"inet_pton";
 		}
 		if (ret != 1) {
 			PERROR("%s", perror_err);
