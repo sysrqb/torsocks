@@ -220,6 +220,7 @@ struct connection *connection_create(int fd, const struct sockaddr *dest)
 		PERROR("zmalloc connection");
 		goto error;
 	}
+	DBG("Allocated new connection at %#x", conn);
 
 	if (dest) {
 		switch (dest->sa_family) {

@@ -120,8 +120,10 @@ LIBC_CONNECT_RET_TYPE tsocks_connect(LIBC_CONNECT_SIG)
 	const char *unknown_addr = "unknown";
 
 	dotted_ret = inet_ntop(addr->sa_family, &((const struct sockaddr_in *)addr)->sin_addr, dottedaddr, 128);
-	if (dotted_ret == NULL)
+	if (dotted_ret == NULL) {
+		memset(dottedaddr, 0, sizeof(dottedaddr));
 		memcpy(dottedaddr, unknown_addr, strlen(unknown_addr));
+	}
 
 	DBG("Connect caught for %#x (%s) on fd %d", addr, dottedaddr, sockfd);
 	if (dotted_ret == NULL)

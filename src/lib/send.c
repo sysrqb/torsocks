@@ -115,7 +115,7 @@ LIBC_SENDMSG_RET_TYPE tsocks_sendmsg(LIBC_SENDMSG_SIG)
 
 	conn = connection_find(sockfd);
 	if (conn == NULL) {
-		ERR("[send] Connection lookup failed for fd %d", sockfd);
+		ERR("[sendmsg] Connection lookup failed for fd %d", sockfd);
 		errno = EBADF;
 		return -1;
 	}

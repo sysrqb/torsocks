@@ -85,7 +85,7 @@ void log_destroy(void);
 	do { \
 		char buf[200]; \
 		strerror_r(errno, buf, sizeof(buf)); \
-		_PERROR(call ": %s", ## args, buf); \
+		_PERROR(call ": %s (%d)", ## args, buf, errno); \
 	} while(0);
 
 #else /* _POSIX_C_SOURCE */
@@ -98,7 +98,7 @@ void log_destroy(void);
 		char *buf; \
 		char tmp[200]; \
 		buf = strerror_r(errno, tmp, sizeof(tmp)); \
-		_PERROR(call ": %s", ## args, buf); \
+		_PERROR(call ": %s (%d)", ## args, buf, errno); \
 	} while(0);
 
 #endif /* _POSIX_C_SOURCE */
