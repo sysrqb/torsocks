@@ -230,7 +230,7 @@ int socks5_connect(struct connection *conn)
 		if (conn->tor_fd == -1) {
 			ERR("Cannot create IPv4 TCP socket: %s",
 				strerror(errno));
-			ret = errno;
+			ret = -errno;
 			goto error;
 		}
 		break;
@@ -242,7 +242,7 @@ int socks5_connect(struct connection *conn)
 		if (conn->tor_fd == -1) {
 			ERR("Cannot create IPv6 TCP socket: %s",
 				strerror(errno));
-			ret = errno;
+			ret = -errno;
 			goto error;
 		}
 		break;
@@ -252,9 +252,8 @@ int socks5_connect(struct connection *conn)
 		conn->tor_fd = tsocks_libc_socket(AF_UNIX, SOCK_STREAM, 0);
 		DBG("Creating UNIX Domain socket %d for socks5_connect()", conn->tor_fd);
 		if (conn->tor_fd == -1) {
-			ERR("Cannot create unix socket: %s",
-				strerror(errno));
-			ret = errno;
+			PERROR("Cannot create unix socket");
+			ret = -errno;
 			goto error;
 		}
 		break;
@@ -293,11 +292,9 @@ int socks5_connect(struct connection *conn)
 			ret = 0;
 		} else {
 			ret = -errno;
+			ERR("Failed connecting to Tor on %d", conn->tor_fd);
 			PERROR("socks5 libc connect");
 		}
-		ret = -errno;
-		ERR("Failed connecting to Tor");
-		PERROR("socks5 libc connect");
 	}
 
 error:
