@@ -519,6 +519,8 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 	assert(hostname);
 	assert(ip_addr);
 
+	DBG("Allocated new connection at %#x", conn);
+
 	if (af == AF_INET) {
 		addr_len = sizeof(uint32_t);
 		conn.dest_addr.domain = CONNECTION_DOMAIN_INET;
@@ -632,6 +634,8 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 	assert(ip);
 
 	DBG("Resolving %" PRIu32 " on the Tor network", addr);
+
+	DBG("Allocated new connection at %#x", conn);
 
 	/* We assert this value is true in setup_tor_connection() so assign
 	 * a valid socket fd number.
