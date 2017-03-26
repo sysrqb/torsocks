@@ -530,20 +530,26 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 {
 	int ret;
 	size_t addr_len;
-	struct connection conn;
+	struct connection *conn;
 	uint8_t socks5_method;
 
 	assert(hostname);
 	assert(ip_addr);
 
+	conn = zmalloc(sizeof(*conn));
+	if (!conn) {
+		PERROR("zmalloc connection");
+		ret = -errno;
+		goto error;
+	}
 	DBG("Allocated new connection at %#x", conn);
 
 	if (af == AF_INET) {
 		addr_len = sizeof(uint32_t);
-		conn.dest_addr.domain = CONNECTION_DOMAIN_INET;
+		conn->dest_addr.domain = CONNECTION_DOMAIN_INET;
 	} else if (af == AF_INET6) {
 		addr_len = 16;
-		conn.dest_addr.domain = CONNECTION_DOMAIN_INET6;
+		conn->dest_addr.domain = CONNECTION_DOMAIN_INET6;
 		/* Tor daemon does not support IPv6 DNS resolution yet. */
 		ret = -ENOSYS;
 		goto error;
@@ -580,8 +586,8 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 	/* We assert this value is true in setup_tor_connection() so assign
 	 * a valid socket fd number.
 	 */
-	conn.app_fd = tsocks_libc_socket(af, SOCK_STREAM, IPPROTO_TCP);
-	if (conn.app_fd < 0) {
+	conn->app_fd = tsocks_libc_socket(af, SOCK_STREAM, IPPROTO_TCP);
+	if (conn->app_fd < 0) {
 		PERROR("socket");
 		ret = -errno;
 		goto error;
@@ -595,44 +601,45 @@ int tsocks_tor_resolve(int af, const char *hostname, void *ip_addr)
 	}
 
 	connection_registry_lock();
-	connection_insert(&conn);
+	connection_insert(conn);
 	connection_registry_unlock();
-	ret = setup_tor_connection(&conn, socks5_method);
+	ret = setup_tor_connection(conn, socks5_method);
 
-	DBG("Socket created for resolve, fd %d", conn.tor_fd);
+	connection_get_ref(conn);
+
+	DBG("Socket created for resolve, fd %d", conn->tor_fd);
 	if (ret < 0) {
 		goto end_close;
 	}
 
 	/* For the user/pass method, send the request before resolve. */
 	if (socks5_method == SOCKS5_USER_PASS_METHOD) {
-		ret = auth_socks5(&conn);
+		ret = auth_socks5(conn);
 		if (ret < 0) {
-			goto tor_close;
+			goto end_close;
 		}
 	}
 
-	ret = socks5_send_resolve_request(hostname, &conn);
+	ret = socks5_send_resolve_request(hostname, conn);
 	if (ret < 0) {
-		goto tor_close;
+		goto end_close;
 	}
 
 	/* Force IPv4 resolution for now. */
-	ret = socks5_recv_resolve_reply(&conn, ip_addr, addr_len);
+	ret = socks5_recv_resolve_reply(conn, ip_addr, addr_len);
 	if (ret < 0) {
-		goto tor_close;
+		goto end_close;
 	}
 
-tor_close:
-	if (tsocks_libc_close(conn.tor_fd) < 0) {
-		PERROR("close");
-	}
 end_close:
-	if (tsocks_libc_close(conn.app_fd) < 0) {
+	if (close(conn->app_fd) < 0) {
 		PERROR("close");
 	}
+	conn = NULL;
 end:
 error:
+	if (conn)
+		free(conn);
 	return ret;
 }
 
@@ -644,7 +651,7 @@ error:
 int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 {
 	int ret;
-	struct connection conn;
+	struct connection *conn;
 	uint8_t socks5_method;
 
 	assert(addr);
@@ -652,18 +659,24 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 
 	DBG("Resolving %" PRIu32 " on the Tor network", addr);
 
+	conn = zmalloc(sizeof(*conn));
+	if (!conn) {
+		PERROR("zmalloc connection");
+		ret = -errno;
+		goto error;
+	}
 	DBG("Allocated new connection at %#x", conn);
 
 	/* We assert this value is true in setup_tor_connection() so assign
 	 * a valid socket fd number.
 	 */
-	conn.app_fd = tsocks_libc_socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (conn.app_fd < 0) {
+	conn->app_fd = tsocks_libc_socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (conn->app_fd < 0) {
 		PERROR("socket");
 		ret = -errno;
 		goto error;
 	}
-	conn.dest_addr.domain = CONNECTION_DOMAIN_INET;
+	conn->dest_addr.domain = CONNECTION_DOMAIN_INET;
 
 	/* If this configuration is set to use SOCKS5 authentication. */
 	if (tsocks_config.socks5_use_auth) {
@@ -673,44 +686,44 @@ int tsocks_tor_resolve_ptr(const char *addr, char **ip, int af)
 	}
 
 	connection_registry_lock();
-	connection_insert(&conn);
+	connection_insert(conn);
 	connection_registry_unlock();
-	ret = setup_tor_connection(&conn, socks5_method);
+	ret = setup_tor_connection(conn, socks5_method);
 
-	DBG("Socket created for ptr resolve, fd %d", conn.tor_fd);
+	connection_get_ref(conn);
+	DBG("Socket created for ptr resolve, fd %d", conn->tor_fd);
 	if (ret < 0) {
 		goto end_close;
 	}
 
 	/* For the user/pass method, send the request before resolve ptr. */
 	if (socks5_method == SOCKS5_USER_PASS_METHOD) {
-		ret = auth_socks5(&conn);
+		ret = auth_socks5(conn);
 		if (ret < 0) {
-			goto tor_close;
+			goto end_close;
 		}
 	}
 
-	ret = socks5_send_resolve_ptr_request(&conn, addr, af);
+	ret = socks5_send_resolve_ptr_request(conn, addr, af);
 	if (ret < 0) {
-		goto tor_close;
+		goto end_close;
 	}
 
 	/* Force IPv4 resolution for now. */
-	ret = socks5_recv_resolve_ptr_reply(&conn, ip);
+	ret = socks5_recv_resolve_ptr_reply(conn, ip);
 	if (ret < 0) {
-		goto tor_close;
+		goto end_close;
 	}
 
-tor_close:
-	if (tsocks_libc_close(conn.tor_fd) < 0) {
-		PERROR("close");
-	}
 end_close:
-	if (tsocks_libc_close(conn.app_fd) < 0) {
+	if (close(conn->app_fd) < 0) {
 		PERROR("close");
 	}
+	conn = NULL;
 
 error:
+	if (conn)
+		free(conn);
 	return ret;
 }
 
