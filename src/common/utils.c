@@ -59,10 +59,10 @@ static int check_addr(const char *ip, int af)
 	assert(ip);
 
 	ret = inet_pton(af, ip, buf);
-  if (ret == -1) {
-    /* Possible if the af value is unknown to inet_pton. */
-    ret = 0;
-  }
+	if (ret == -1) {
+		/* Possible if the af value is unknown to inet_pton. */
+		ret = 0;
+	}
 
 	return ret;
 }
