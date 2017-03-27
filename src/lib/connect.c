@@ -115,11 +115,17 @@ LIBC_CONNECT_RET_TYPE tsocks_connect(LIBC_CONNECT_SIG)
 	int ret, ret_errno;
 	struct connection *new_conn;
 	struct onion_entry *on_entry;
-	char dottedaddr[128], *dotted_ret;
+	char dottedaddr[128];
+	const char *dotted_ret;
+	const char *unknown_addr = "unknown";
 
 	dotted_ret = inet_ntop(addr->sa_family, &((const struct sockaddr_in *)addr)->sin_addr, dottedaddr, 128);
+	if (dotted_ret == NULL)
+		memcpy(dottedaddr, unknown_addr, strlen(unknown_addr));
 
 	DBG("Connect caught for %#x (%s) on fd %d", addr, dottedaddr, sockfd);
+	if (dotted_ret == NULL)
+		DBG("Parsing destination address failed: %s", strerror(errno));
 
 	/*
 	 * Validate socket values in order to see if we can handle this connect
