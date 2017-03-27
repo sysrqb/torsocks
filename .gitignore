@@ -58,6 +58,8 @@ tests/unit/test_utils
 tests/unit/test_config-file
 tests/unit/test_socks5
 tests/unit/test_compat
+tests/unit/test_select
+tests/unit/test_poll
 
 tests/*.log
 tests/*.trs
