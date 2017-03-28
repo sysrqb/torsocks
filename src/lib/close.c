@@ -38,7 +38,8 @@ LIBC_CLOSE_RET_TYPE tsocks_close(LIBC_CLOSE_SIG)
 	DBG("[close] Found connection %#x", conn);
 	if (conn) {
 		DBG("[close] Closing %d", conn->tor_fd);
-		tsocks_libc_close(conn->tor_fd);
+		if (conn->tor_fd != fd)
+			tsocks_libc_close(conn->tor_fd);
 		/*
 		 * Remove from the registry so it's not visible anymore and thus using
 		 * it without lock.

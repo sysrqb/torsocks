@@ -242,7 +242,10 @@ int socks5_connect(struct connection *conn)
 	case CONNECTION_DOMAIN_INET:
 		socks5_addr = (struct sockaddr *) &tsocks_config.socks5_addr.u.sin;
 		len = sizeof(tsocks_config.socks5_addr.u.sin);
-		conn->tor_fd = tsocks_libc_socket(AF_INET, SOCK_STREAM, 0);
+		if (conn->dest_addr.domain != CONNECTION_DOMAIN_INET)
+			conn->tor_fd = tsocks_libc_socket(AF_INET, SOCK_STREAM, 0);
+		else
+			conn->tor_fd = conn->app_fd;
 		DBG("Creating INET socket %d for socks5_connect()", conn->tor_fd);
 		if (conn->tor_fd == -1) {
 			ERR("Cannot create IPv4 TCP socket: %s",
@@ -254,7 +257,10 @@ int socks5_connect(struct connection *conn)
 	case CONNECTION_DOMAIN_INET6:
 		socks5_addr = (struct sockaddr *) &tsocks_config.socks5_addr.u.sin6;
 		len = sizeof(tsocks_config.socks5_addr.u.sin6);
-		conn->tor_fd = tsocks_libc_socket(AF_INET6, SOCK_STREAM, 0);
+		if (conn->dest_addr.domain != CONNECTION_DOMAIN_INET)
+			conn->tor_fd = tsocks_libc_socket(AF_INET6, SOCK_STREAM, 0);
+		else
+			conn->tor_fd = conn->app_fd;
 		DBG("Creating INET6 socket %d for socks5_connect()", conn->tor_fd);
 		if (conn->tor_fd == -1) {
 			ERR("Cannot create IPv6 TCP socket: %s",
