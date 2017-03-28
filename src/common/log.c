@@ -61,26 +61,26 @@ static size_t add_time_to_log(char *buf, size_t len)
  */
 static void _log_write(char *buf, size_t len)
 {
-    int ret;
+	int ret;
 
-    assert(buf);
+	assert(buf);
 	assert(logconfig.fp);
 
 	/* Make sure buffer is NULL terminated. */
 	buf[len - 1] = '\0';
 
-    ret = fprintf(logconfig.fp, "%s", buf);
-    if (ret < 0) {
-        fprintf(stderr, "[tsocks] logging failed. Stopping logging.\n");
-        log_destroy();
-        goto end;
-    }
+	ret = fprintf(logconfig.fp, "%s", buf);
+	if (ret < 0) {
+		fprintf(stderr, "[tsocks] logging failed on fd %d. Stopping logging.\n", fileno(logconfig.fp));
+		log_destroy();
+		goto end;
+	}
 
-    /*
-     * On a write failure we stop the logging but a flush failure is not that
-     * critical.
-     */
-    (void) fflush(logconfig.fp);
+	/*
+	* On a write failure we stop the logging but a flush failure is not that
+	* critical.
+	*/
+	(void) fflush(logconfig.fp);
 
 end:
     return;
