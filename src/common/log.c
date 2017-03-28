@@ -100,7 +100,7 @@ void log_print(const char *fmt, ...)
 
 	assert(fmt);
 
-	if (!logconfig.fp) {
+	if (!logconfig.fp || fileno(logconfig.fp) < 0) {
 		goto end;
 	}
 
@@ -146,7 +146,7 @@ int log_init(int level, const char *filepath, enum log_time_status t_status)
 
 	if (filepath) {
 		logconfig.fp = fopen(filepath, "a");
-		if (!logconfig.fp) {
+		if (!logconfig.fp || fileno(logconfig.fp) == -1) {
 			fprintf(stderr, "[tsocks] Unable to open log file %s\n", filepath);
 			ret = -errno;
 			goto error;
