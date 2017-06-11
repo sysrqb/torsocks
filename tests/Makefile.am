@@ -1,5 +1,3 @@
-SUBDIRS = utils unit
-
 TESTS = \
 	test_connect \
 	test_dns \
@@ -8,6 +6,12 @@ TESTS = \
 	test_socket \
 	test_select \
 	test_poll \
+	unit/test_compat \
+	unit/test_config-file \
+	unit/test_connection \
+	unit/test_onion \
+	unit/test_socks5 \
+	unit/test_utils \
 	# end of TESTS
 
 TAP_DRIVER = $(top_srcdir)/tests/tap-driver.sh
